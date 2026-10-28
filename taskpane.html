@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<title>Hart Aanmeldpaneel</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: één smal Outlook-taakpaneel (max 420px), gecentreerd; tabs bovenaan, lijsten als kaarten */
+:root{
+  --bg:#eef0f4; --pane:#ffffff; --ink:#1d2433; --muted:#5d6678; --line:#dde1ea;
+  --accent:#b23a5b; --accent-soft:#f8e6ec; --sun:#9a6a12; --sun-soft:#fbf1dc;
+  --ok:#2f7a55; --ok-soft:#e2f2e9; --chip:#eef1f7; --late:#c2410c; --late-soft:#fde8dd;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151c; --pane:#1b202a; --ink:#e7eaf1; --muted:#9aa3b5; --line:#2c3340;
+  --accent:#ec7c9a; --accent-soft:#3a2129; --sun:#e2b45c; --sun-soft:#352a14;
+  --ok:#6cc697; --ok-soft:#173326; --chip:#252b37; --late:#f59a6b; --late-soft:#3a2216; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151c; --pane:#1b202a; --ink:#e7eaf1; --muted:#9aa3b5; --line:#2c3340;
+  --accent:#ec7c9a; --accent-soft:#3a2129; --sun:#e2b45c; --sun-soft:#352a14;
+  --ok:#6cc697; --ok-soft:#173326; --chip:#252b37; --late:#f59a6b; --late-soft:#3a2216; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.note{max-width:420px;margin:0 auto 10px;color:var(--muted);font-size:12.5px}
+.pane{max-width:420px;margin:0 auto;background:var(--pane);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative;min-height:680px}
+header{padding:14px 16px 0;border-bottom:1px solid var(--line)}
+.brand{display:flex;justify-content:space-between;align-items:center;gap:8px}
+h1{font-family:var(--f-display);font-weight:700;font-size:18px;margin:0;letter-spacing:-.01em}
+h1 span{color:var(--accent)}
+.who{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+select,input{font:inherit;color:var(--ink);background:var(--pane);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.who select{padding:3px 6px;font-size:12px}
+nav{display:flex;gap:4px;margin-top:12px}
+nav button{flex:1;font:inherit;font-weight:700;font-size:13px;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:8px 4px 9px;cursor:pointer}
+nav button[aria-selected="true"]{color:var(--ink);border-color:var(--accent)}
+.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;line-height:18px;margin-left:4px}
+main{padding:14px 16px 20px}
+section{display:flex;flex-direction:column;gap:12px}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}
+.btn{font:inherit;font-weight:700;border-radius:7px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--pane);color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:focus-visible,nav button:focus-visible,.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:26px 16px;text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center;cursor:pointer;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop strong{font-family:var(--f-display);font-size:16px}
+.drop small{color:var(--muted)}
+.or{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.form{display:flex;flex-direction:column;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label,.field .fl{font-size:12.5px;font-weight:700}
+.parsed{font-size:12px;color:var(--ok);background:var(--ok-soft);border-radius:6px;padding:6px 9px}
+.via{display:flex;gap:6px;flex-wrap:wrap}
+.via label{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:20px;padding:4px 11px;font-size:13px;cursor:pointer}
+.via label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.via input{accent-color:var(--accent);margin:0}
+.hint{font-size:12px;color:var(--muted)}
+.therapists{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.therapists label{border:1px solid var(--line);border-radius:8px;padding:9px 10px;cursor:pointer;display:flex;flex-direction:column;gap:3px;position:relative}
+.therapists input{position:absolute;opacity:0}
+.therapists label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.therapists label:has(input:focus-visible){outline:2px solid var(--accent)}
+.therapists b{font-size:14px}.therapists small{color:var(--muted);font-size:12px;line-height:1.35}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.check input{margin-top:3px;accent-color:var(--accent)}
+.privacy{font-size:12px;color:var(--muted)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--pane);color:var(--muted);border-radius:20px;padding:4px 10px;cursor:pointer}
+.pill[aria-pressed="true"]{background:var(--ink);color:var(--pane);border-color:var(--ink)}
+.cap{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.capcard{border:1px solid var(--line);border-radius:9px;padding:10px 11px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.capcard .top{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.capcard b.n{font-family:var(--f-display);font-size:24px;font-variant-numeric:tabular-nums;line-height:1}
+.capcard b.n small{font-size:13px;color:var(--muted);font-weight:500}
+.meter{display:flex;gap:2px}
+.meter i{flex:1;height:6px;border-radius:2px;background:var(--line)}
+.meter i.t{background:var(--accent)}
+.meter i.f{background:var(--sun)}
+.capcard .meta b{color:var(--ink)}
+.capcard .max{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted)}
+.capcard .max input{width:52px;padding:2px 5px;font-size:12px}
+.free{font-size:12.5px;font-weight:700}
+.free.now{color:var(--ok)}
+.phases{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.phases b{color:var(--ink);font-variant-numeric:tabular-nums}
+.list{display:flex;flex-direction:column;gap:8px}
+.card{border:1px solid var(--line);border-radius:9px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;cursor:pointer;background:var(--pane);text-align:left;font:inherit;color:inherit;width:100%}
+.card:hover{border-color:var(--muted)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.name{font-weight:700;font-size:15px}
+.id{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.meta{font-size:12px;color:var(--muted)}
+.bar{display:flex;gap:2px}
+.bar i{flex:1;height:5px;border-radius:2px;background:var(--line)}
+.bar i.d{background:var(--ok)}
+.next{font-size:12.5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.chip.s{background:var(--sun-soft);color:var(--sun)}
+.chip.b{background:var(--accent-soft);color:var(--accent)}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.late{background:var(--late-soft);color:var(--late)}
+.chip.today{background:var(--sun-soft);color:var(--sun)}
+.todo{display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:10px 0}
+.todo:last-child{border-bottom:0}
+.todo input{margin-top:3px;width:17px;height:17px;accent-color:var(--ok);flex:none}
+.todo .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.todo .t b{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.todo button{font:inherit;font-size:12px;background:none;border:0;color:var(--accent);cursor:pointer;padding:0}
+.group{margin-top:4px}
+.empty{color:var(--muted);text-align:center;padding:24px 8px;font-size:13px}
+.sheet{position:absolute;inset:0;background:var(--pane);display:flex;flex-direction:column;z-index:5}
+.sheet-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
+.sheet-head h2{font-family:var(--f-display);font-size:18px;margin:0;flex:1}
+.sheet-body{padding:14px 16px 24px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.phase h3{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 2px}
+.step{display:flex;gap:9px;align-items:center;padding:5px 0;font-size:13.5px;flex-wrap:wrap}
+.step input[type=checkbox]{width:17px;height:17px;accent-color:var(--ok);flex:none}
+.step label{flex:1;min-width:0}
+.step.done label{color:var(--muted)}
+.step .when{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.step.na{opacity:.5}
+.step.na label{text-decoration:line-through}
+.dlrow{flex-basis:100%;display:flex;align-items:center;gap:6px;padding-left:26px;font-size:12px;color:var(--muted)}
+.dlrow input{padding:2px 6px;font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2 input,.grid2 select{width:100%;min-width:0}
+.link{background:var(--chip);border-radius:8px;padding:9px 11px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--pane);padding:9px 16px;border-radius:8px;font-size:13px;z-index:20;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* taakpaneel in Outlook: volle breedte, geen kader */
+body{padding-block:0 24px}
+.pane{max-width:none;border:0;border-radius:0;min-height:100vh}
+.note{max-width:none;margin:0;padding:6px 16px;background:var(--sun-soft);color:var(--sun);font-size:11.5px;font-weight:700}
+.mailctx{font-size:12px;color:var(--muted);background:var(--chip);border-radius:7px;padding:7px 10px}
+.mailctx b{color:var(--ink)}
+.pdfs{display:flex;flex-direction:column;gap:6px}
+</style>
+</head>
+<body>
+
+<p class="note">Testversie · voorbeeldgegevens · nog niet gekoppeld aan Excel</p>
+<div class="pane" id="pane">
+  <header>
+    <div class="brand">
+      <h1>Hart <span>Aanmeldingen</span></h1>
+      <div class="who"><label for="me">Ik ben</label>
+        <select id="me"><option>Susanne</option><option selected>Jasmijn</option></select></div>
+    </div>
+    <nav role="tablist">
+      <button role="tab" data-tab="nieuw" id="tab-nieuw">Nieuw</button>
+      <button role="tab" data-tab="caseload" id="tab-caseload">Caseload</button>
+      <button role="tab" data-tab="todo" id="tab-todo">To do's<span class="badge" id="todoCount"></span></button>
+    </nav>
+  </header>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* p = fase, w = S (Susanne) of B (behandelaar), t = standaardtermijn in dagen na de vorige stap, ba = alleen als bedrijfsarts betrokken is */
+const STEPS=[
+ {k:'naarBeh',l:'Aanmelding doorsturen naar behandelaar',w:'S',p:0,t:2},
+ {k:'james',l:'Cliënt aanmaken in James',w:'B',p:0,t:3},
+ {k:'toest',l:'Toestemmingsformulier compleet laten invullen',w:'B',p:0,t:7},
+ {k:'upload',l:'Aanmeld- en toestemmingsformulier uploaden in James',w:'B',p:0,t:3},
+ {k:'intake',l:'Intake inplannen',w:'B',p:1,t:5},
+ {k:'bevest',l:'Bevestigingsmail intake verzenden',w:'B',p:1,t:1},
+ {k:'plan',l:'Behandelplan en doelen opstellen',w:'B',p:1,t:7,base:'intake'},
+ {k:'intakeJ',l:'Intakeverslag uploaden in James',w:'B',p:1,t:3,base:'intake'},
+ {k:'aantal',l:'Aantal behandelingen bepalen',w:'B',p:1,t:3,base:'intake'},
+ {k:'offerte',l:'Offerte versturen',w:'S',p:1,t:3},
+ {k:'akkoord',l:'Akkoord op offerte binnenhalen',w:'S',p:1,t:10},
+ {k:'baDoel',l:'Bedrijfsarts informeren over behandeldoel',w:'B',p:2,t:5,ba:true},
+ {k:'eerste',l:'Eerste behandeling inplannen',w:'B',p:2,t:7},
+ {k:'laatste',l:'Laatste behandeling geven',w:'B',p:3,t:null},
+ {k:'baAf',l:'Bedrijfsarts informeren over afronding',w:'B',p:4,t:5,ba:true},
+ {k:'af',l:'Traject afsluiten',w:'B',p:4,t:3}];
+const PHASES=['Aanmeldingsfase','Intakefase','Startfase','Behandelingsfase','Afrondingsfase'];
+const T=['Susanne','Jasmijn'];
+const VIA=[['wg','Werkgever'],['ba','Bedrijfsarts'],['ov','Anders']];
+const iso=d=>d.toISOString().slice(0,10);
+const today=iso(new Date());
+const day=n=>{const x=new Date();x.setDate(x.getDate()+n);return iso(x)};
+const add=(d,n)=>{const x=new Date(d+'T12:00');x.setDate(x.getDate()+n);return iso(x)};
+const stepsFor=c=>STEPS.filter(s=>!s.ba||c.via.ba);
+
+function mk(id,naam,beh,via,ago,n,eindOver){
+  const c={id,naam,beh,via:{wg:via.includes('wg'),ba:via.includes('ba'),ov:via.includes('ov')},datum:day(-ago),intakeDatum:'',jamesNr:'',sessies:'',start:'',eind:'',done:{},dl:{}};
+  let d=c.datum;stepsFor(c).slice(0,n).forEach(s=>{d=add(d,Math.min(s.t||4,4));if(d>today)d=today;c.done[s.k]=d});
+  if(c.done.intake)c.intakeDatum=add(c.done.intake,9);
+  if(c.done.james)c.jamesNr='J'+(4100+parseInt(id.slice(-3)));
+  if(c.done.aantal)c.sessies=12;
+  if(c.done.eerste){c.start=add(c.done.eerste,7);c.eind=eindOver!=null?day(eindOver):add(c.start,140)}
+  return c}
+const SAMPLE=[
+ mk('A-26-031','Noor','Jasmijn','wg ba',1,0),
+ mk('A-26-030','Bram','Susanne','wg',5,1),
+ mk('A-26-029','Fenna','Jasmijn','ba',12,3),
+ mk('A-26-028','Thijs','Jasmijn','wg ba',16,5),
+ mk('A-26-027','Lotte','Susanne','wg',22,8),
+ mk('A-26-026','Yara','Jasmijn','wg ba',30,9),
+ mk('A-26-024','Mees','Jasmijn','wg ba',48,12,95),
+ mk('A-26-023','Sanne','Susanne','ba',60,12,70),
+ mk('A-26-022','Ruben','Jasmijn','wg',75,11,64),
+ mk('A-26-021','Hanna','Jasmijn','wg ba',90,12,41),
+ mk('A-26-019','Ilse','Jasmijn','wg ba',110,12,18),
+ mk('A-26-018','Wout','Susanne','wg ba',120,12,26),
+ mk('A-26-016','Merel','Jasmijn','ov',140,11,-3),
+ mk('A-26-015','Joep','Jasmijn','wg ba',160,15,-20)];
+const KEY='hart-aanmeldpaneel-v4';
+let state={tab:'caseload',me:'Jasmijn',filter:'Jasmijn',showDone:false,clients:SAMPLE,cap:{Susanne:6,Jasmijn:10},draft:null,open:null};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.clients)Object.assign(state,{clients:s.clients,me:s.me||'Jasmijn',cap:s.cap||state.cap})}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({clients:state.clients,me:state.me,cap:state.cap}))}catch(e){}}
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=d=>d?new Date(d+'T12:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short'}):'–';
+const nextStep=c=>stepsFor(c).find(s=>!c.done[s.k]);
+const owner=(c,st)=>st.w==='S'?'Susanne':c.beh;
+const active=c=>!c.done.af;
+const inBeh=c=>{const n=nextStep(c);return n&&n.p>=3};
+const viaTxt=c=>VIA.filter(([k])=>c.via[k]).map(([,l])=>l).join(' + ')||'–';
+function deadline(c,s){
+  if(c.dl[s.k])return c.dl[s.k];
+  if(s.k==='laatste')return c.eind||null;
+  if(s.base==='intake'&&c.intakeDatum)return add(c.intakeDatum,s.t);
+  const list=stepsFor(c),i=list.indexOf(s);
+  let base=c.datum;for(let j=i-1;j>=0;j--){if(c.done[list[j].k]){base=c.done[list[j].k];break}}
+  return add(base,s.t)}
+function dlChip(d){if(!d)return'';
+  if(d<today)return`<span class="chip late">te laat · ${fmt(d)}</span>`;
+  if(d===today)return`<span class="chip today">vandaag</span>`;
+  return`<span class="chip">uiterlijk ${fmt(d)}</span>`}
+function capacity(t,extra=0){
+  const mine=state.clients.filter(c=>c.beh===t&&active(c));
+  const lopend=mine.length+extra,max=+state.cap[t]||0;
+  const ends=mine.map(c=>c.eind).filter(Boolean).sort();
+  const over=lopend-max;
+  let free;
+  if(over<0)free={now:true,txt:`${-over} plek${-over===1?'':'ken'} vrij`};
+  else free={now:false,txt:ends[over]?`Plek vrij rond ${fmt(ends[over])}`:'Nog geen einddatum bekend'};
+  return{lopend,beh:mine.filter(inBeh).length,max,free}}
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2800)}
+
+function render(){
+  document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===state.tab));
+  $('#me').value=state.me;
+  const mine=state.clients.filter(active).filter(c=>{const n=nextStep(c);return n&&owner(c,n)===state.me});
+  $('#todoCount').textContent=mine.length;$('#todoCount').hidden=!mine.length;
+  $('#main').innerHTML={nieuw:viewNew,caseload:viewCaseload,todo:viewTodo}[state.tab]();
+  bind();
+  if(state.open)openSheet(state.open);
+}
+
+function viaBoxes(c,pfx){return `<div class="via">${VIA.map(([k,l])=>`<label><input type="checkbox" id="${pfx}-${k}" data-via="${k}" ${c.via[k]?'checked':''}>${l}</label>`).join('')}</div>`}
+
+function viewNew(){
+  const d=state.draft;
+  if(!d)return `<section>
+    ${mailCtx()}
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Kies of sleep een aanmelding">
+      <strong>Sleep hier de aanmelding</strong>
+      <small>Pdf uit Zivver, of klik om een bestand te kiezen</small>
+      <input type="file" id="file" accept="application/pdf" hidden>
+    </div>
+    <div class="or">of</div>
+    <button class="btn" id="fromMail">Bijlage uit deze mail gebruiken</button>
+    <p class="privacy">De pdf wordt alleen uitgelezen en daarna vergeten. In het overzicht komen de voornaam, via wie de aanmelding loopt, de behandelaar en een link naar de mail.</p>
+    <div class="lbl">Plekken per behandelaar</div>
+    ${capCards()}
+    ${recent()}
+  </section>`;
+  return `<section>
+    <div class="parsed">Uitgelezen uit <b>${esc(d.file)}</b>. Controleer de gegevens.</div>
+    <div class="form">
+      <div class="field"><label for="f-naam">Voornaam cliënt</label><input id="f-naam" value="${esc(d.naam)}"></div>
+      <div class="field"><span class="fl">Aangemeld via</span>${viaBoxes(d,'f')}
+        <span class="hint" id="baHint">${d.via.ba?'Bedrijfsarts betrokken: terugkoppelingen aan de bedrijfsarts komen in de to do\'s.':'Geen bedrijfsarts: de terugkoppelingen aan de bedrijfsarts vervallen.'}</span></div>
+      <div class="field"><label for="f-datum">Datum aanmelding</label><input id="f-datum" type="date" value="${d.datum}"></div>
+      <div class="field"><span class="fl">Behandelaar</span>
+        <div class="therapists">${T.map(t=>{const a=capacity(t),b=capacity(t,1);
+          return `<label><input type="radio" name="beh" id="beh-${t}" value="${t}" ${d.beh===t?'checked':''}><b>${t}</b>
+          <small>${a.lopend} lopend → <b>${b.lopend}</b> met deze aanmelding<br>${a.beh} in behandeling · ${a.max} plekken</small>
+          <small class="free ${a.free.now?'now':''}">${a.free.txt}</small></label>`}).join('')}</div></div>
+      <label class="check"><input type="checkbox" id="f-fwd" checked> Stuur de aanmeldmail door naar de behandelaar (vinkt de eerste stap af)</label>
+      <div style="display:flex;gap:8px"><button class="btn primary" id="assign" style="flex:1">Toewijzen</button><button class="btn" id="cancel">Annuleren</button></div>
+    </div></section>`;
+}
+
+function capCards(){return `<div class="cap">${T.map(t=>{const c=capacity(t);
+      const cells=Array.from({length:Math.max(c.max,c.lopend)},(_,i)=>`<i class="${i<c.beh?'t':i<c.lopend?'f':''}"></i>`).join('');
+      return `<div class="capcard">
+        <div class="top"><b>${t}</b><b class="n">${c.lopend}<small> / ${c.max}</small></b></div>
+        <div class="meter" aria-label="${c.beh} in behandeling, ${c.lopend-c.beh} tot start, ${c.max} plekken">${cells}</div>
+        <div class="meta"><b>${c.beh}</b> in behandeling · <b>${c.lopend-c.beh}</b> tot start</div>
+        <div class="free ${c.free.now?'now':''}">${c.free.txt}</div>
+        <label class="max" for="cap-${t}">Aantal plekken <input type="number" min="0" id="cap-${t}" data-cap="${t}" value="${c.max}"></label>
+      </div>`}).join('')}</div>`}
+function recent(){
+  const aan=STEPS.filter(s=>s.p===0);
+  const list=state.clients.filter(active).filter(c=>aan.some(s=>!c.done[s.k])).sort((a,b)=>b.datum.localeCompare(a.datum));
+  return `<div class="lbl">Aanmeldingen in verwerking · ${list.length}</div>
+    <div class="list">${list.length?list.map(c=>{const d=aan.filter(s=>c.done[s.k]).length,n=nextStep(c),dl=deadline(c,n);
+      return `<button class="card" data-open="${c.id}"><div class="row"><span class="name">${esc(c.naam)}</span><span class="meta">${esc(c.beh)} · aangemeld ${fmt(c.datum)}</span></div>
+      <div class="bar">${aan.map(s=>`<i class="${c.done[s.k]?'d':''}"></i>`).join('')}</div>
+      <div class="next">${d} van ${aan.length} verwerkt · ${esc(n.l)} ${dlChip(dl)}</div></button>`}).join(''):'<p class="empty">Alle aanmeldingen zijn verwerkt.</p>'}</div>`}
+function viewCaseload(){
+  const act=state.clients.filter(active);
+  const list=state.clients.filter(c=>state.showDone||active(c)).filter(c=>state.filter==='Alle'||c.beh===state.filter)
+    .sort((a,b)=>(active(b)-active(a))||b.datum.localeCompare(a.datum));
+  const ph=i=>act.filter(c=>{const n=nextStep(c);return n&&n.p===i}).length;
+  return `<section>
+    <div class="phases">${PHASES.map((p,i)=>`<span>${p} <b>${ph(i)}</b></span>`).join('')}</div>
+    <div class="filters">${['Alle',...T].map(f=>`<button class="pill" data-f="${f}" aria-pressed="${state.filter===f}">${f}</button>`).join('')}
+      <button class="pill" id="showDone" aria-pressed="${state.showDone}">Ook afgerond</button></div>
+    <div class="list">${list.length?list.map(card).join(''):'<p class="empty">Geen cliënten in deze selectie.</p>'}</div>
+  </section>`;
+}
+function card(c){const n=nextStep(c);
+  return `<button class="card" data-open="${c.id}">
+    <div class="row"><span class="name">${esc(c.naam)}</span></div>
+    <div class="meta">${esc(c.beh)} · via ${viaTxt(c)} · ${c.eind?'einde ~'+fmt(c.eind):'aangemeld '+fmt(c.datum)}</div>
+    <div class="bar">${stepsFor(c).map(s=>`<i class="${c.done[s.k]?'d':''}"></i>`).join('')}</div>
+    <div class="next">${n?`<span class="chip">${PHASES[n.p]}</span> ${esc(n.l)} <span class="chip ${n.w==='S'?'s':'b'}">${esc(owner(c,n))}</span>`:`<span class="chip ok">Afgerond ${fmt(c.done.af)}</span>`}</div>
+  </button>`}
+
+function viewTodo(){
+  const items=state.clients.filter(active).map(c=>{const n=nextStep(c);return{c,n,d:n&&deadline(c,n)}}).filter(x=>x.n);
+  const groups=state.filter==='Alle'?[state.me,...T.filter(t=>t!==state.me)]:[state.filter];
+  return `<section>
+    <div class="filters">${['Alle',...T].map(f=>`<button class="pill" data-f="${f}" aria-pressed="${state.filter===f}">${f==='Alle'?'Iedereen':f}</button>`).join('')}</div>
+    ${groups.map(g=>{const mine=items.filter(x=>owner(x.c,x.n)===g).sort((a,b)=>(a.d||'9').localeCompare(b.d||'9'));
+      const late=mine.filter(x=>x.d&&x.d<today).length;
+      return `<div class="group"><div class="lbl">${g===state.me?'Mijn eerstvolgende stappen':g} · ${mine.length}${late?` · ${late} te laat`:''}</div>
+      ${mine.length?mine.map(({c,n,d})=>`<div class="todo"><input type="checkbox" id="td-${c.id}" data-done="${c.id}" data-k="${n.k}" aria-label="${esc(n.l)} afvinken" ${n.k==='intake'?'disabled title="Kies de datum van de intake"':''}>
+        <div class="t"><b>${esc(n.l)} ${dlChip(d)}</b><span class="meta">${esc(c.naam)} · ${esc(c.beh)} · ${PHASES[n.p]}</span>
+        ${n.k==='intake'?`<span class="dlrow" style="padding-left:0"><label for="ti-${c.id}">Intake op</label><input type="date" id="ti-${c.id}" data-tintake="${c.id}"></span>`:''}</div>
+        <button data-open="${c.id}">Open</button></div>`).join(''):'<p class="empty">Niets openstaand.</p>'}</div>`}).join('')}
+  </section>`;
+}
+
+function openSheet(id){
+  const c=state.clients.find(x=>x.id===id);if(!c)return;state.open=id;
+  document.querySelector('.sheet')?.remove();
+  const n=nextStep(c);
+  const el=document.createElement('div');el.className='sheet';
+  el.innerHTML=`<div class="sheet-head"><button class="btn" id="close" aria-label="Terug">←</button><h2>${esc(c.naam)}</h2></div>
+  <div class="sheet-body">
+    <div class="grid2">
+      <div class="field"><label for="s-beh">Behandelaar</label><select id="s-beh">${T.map(t=>`<option ${c.beh===t?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="field"><label for="s-james">Cliëntnr. James</label><input id="s-james" value="${esc(c.jamesNr)}" placeholder="bijv. J4120"></div>
+      <div class="field"><label for="s-ses">Aantal behandelingen</label><select id="s-ses"><option value="">Kies…</option>${[5,8,12].map(n=>`<option ${+c.sessies===n?'selected':''}>${n}</option>`).join('')}</select></div>
+      <div class="field"><label for="s-intake">Datum intake</label><input id="s-intake" type="date" value="${c.intakeDatum}"></div>
+      <div class="field"><label for="s-datum">Datum aanmelding</label><input id="s-datum" type="date" value="${c.datum}"></div>
+      <div class="field"><label for="s-start">Startdatum traject</label><input id="s-start" type="date" value="${c.start}"></div>
+      <div class="field"><label for="s-eind">Verwachte einddatum</label><input id="s-eind" type="date" value="${c.eind}"></div>
+    </div>
+    <div class="field"><span class="fl">Aangemeld via</span>${viaBoxes(c,'s')}</div>
+    ${c.done.upload?(c.jamesNr?`<div class="link"><span>Dossier staat in James onder <b>${esc(c.jamesNr)}</b></span></div>`:''):`<div class="link"><span>Aanmeldformulier staat nog niet in James.</span><button class="btn" id="openMail">Open aanmelding</button></div>`}
+    ${PHASES.map((p,i)=>`<div class="phase"><h3>${p}</h3>${STEPS.filter(s=>s.p===i).map(s=>{
+      const na=s.ba&&!c.via.ba,dn=c.done[s.k];
+      if(na)return `<div class="step na"><input type="checkbox" disabled aria-label="${esc(s.l)}"><label>${esc(s.l)}</label><span class="when">vervalt</span></div>`;
+      return `<div class="step ${dn?'done':''}"><input type="checkbox" id="st-${s.k}" data-step="${s.k}" ${dn?'checked':''}><label for="st-${s.k}">${esc(s.l)}</label>
+        ${dn?`<span class="when">✓ ${fmt(dn)}</span>`:`<span class="chip ${s.w==='S'?'s':'b'}">${esc(owner(c,s))}</span>`}
+        ${s.k==='intake'&&!dn?`<div class="dlrow"><label for="ip-${c.id}">Intake op</label><input type="date" id="ip-${c.id}" data-intake="${c.id}" value="${c.intakeDatum}"><span>vinkt de taak af</span></div>`:''}
+        ${s.k==='intake'&&dn&&c.intakeDatum?`<div class="dlrow">Intake op <b>${fmt(c.intakeDatum)}</b></div>`:''}
+        ${!dn&&n&&n.k===s.k&&s.k!=='intake'?`<div class="dlrow"><label for="dl-${s.k}">Deadline</label><input type="date" id="dl-${s.k}" data-dl="${s.k}" value="${deadline(c,s)||''}">${dlChip(deadline(c,s))}</div>`:''}
+      </div>`}).join('')}</div>`).join('')}
+  </div>`;
+  $('#pane').appendChild(el);
+  const re=()=>{save();openSheet(id)};
+  el.querySelector('#close').onclick=()=>{state.open=null;el.remove();render()};
+  el.querySelectorAll('[data-step]').forEach(cb=>cb.onchange=()=>{if(cb.checked)c.done[cb.dataset.step]=today;else delete c.done[cb.dataset.step];re()});
+  el.querySelectorAll('[data-intake]').forEach(i=>i.onchange=()=>{if(!i.value)return;c.intakeDatum=i.value;c.done.intake=today;toast(`Intake ingepland op ${fmt(i.value)}.`);re()});
+  el.querySelectorAll('[data-dl]').forEach(i=>i.onchange=()=>{if(i.value)c.dl[i.dataset.dl]=i.value;else delete c.dl[i.dataset.dl];re()});
+  el.querySelectorAll('[data-via]').forEach(cb=>cb.onchange=()=>{c.via[cb.dataset.via]=cb.checked;re()});
+  const f=(sel,key)=>el.querySelector(sel).onchange=e=>{c[key]=e.target.value;re()};
+  f('#s-beh','beh');f('#s-james','jamesNr');f('#s-ses','sessies');f('#s-datum','datum');f('#s-intake','intakeDatum');f('#s-start','start');f('#s-eind','eind');
+  el.querySelector('#openMail')?.addEventListener('click',()=>{if(MB()&&c.mailId){try{Office.context.mailbox.displayMessageForm(c.mailId)}catch(e){toast('De aanmeldmail kon niet worden geopend.')}}else toast('Bij deze voorbeeldcliënt hoort geen echte mail.')});
+}
+
+const NAMES=['Roos','Daan','Evi','Milan','Femke','Stijn','Lieke'];
+function startDraft(file){state.draft={file,mailId:curItem()?.itemId||'',naam:NAMES[Math.floor(Math.random()*NAMES.length)],via:{wg:true,ba:true,ov:false},datum:today,beh:''};render()}
+function readDraft(){const d=state.draft;if(!d)return;
+  const n=$('#f-naam');if(n)d.naam=n.value;const dt=$('#f-datum');if(dt)d.datum=dt.value;
+  const r=document.querySelector('input[name=beh]:checked');if(r)d.beh=r.value;
+  document.querySelectorAll('#main [data-via]').forEach(cb=>d.via[cb.dataset.via]=cb.checked)}
+function bind(){
+  document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{state.filter=b.dataset.f;render()});
+  $('#showDone')?.addEventListener('click',()=>{state.showDone=!state.showDone;render()});
+  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openSheet(b.dataset.open));
+  document.querySelectorAll('[data-cap]').forEach(i=>i.onchange=()=>{state.cap[i.dataset.cap]=Math.max(0,+i.value||0);save();render();document.getElementById(i.id)?.focus()});
+  document.querySelectorAll('[data-done]').forEach(cb=>cb.onchange=()=>{const c=state.clients.find(x=>x.id===cb.dataset.done);c.done[cb.dataset.k]=today;save();
+    const n=nextStep(c);toast(n?`Afgevinkt op ${fmt(today)}. Volgende stap voor ${c.naam}: ${n.l} (${owner(c,n)})`:`${c.naam} is afgerond.`);setTimeout(render,250)});
+  document.querySelectorAll('[data-tintake]').forEach(i=>i.onchange=()=>{if(!i.value)return;const c=state.clients.find(x=>x.id===i.dataset.tintake);c.intakeDatum=i.value;c.done.intake=today;save();
+    const n=nextStep(c);toast(`Intake ${c.naam} ingepland op ${fmt(i.value)}. Volgende: ${n.l}, uiterlijk ${fmt(deadline(c,n))}.`);setTimeout(render,250)});
+  document.querySelectorAll('#main [data-via]').forEach(cb=>cb.onchange=()=>{readDraft();render()});
+  document.querySelectorAll('input[name=beh]').forEach(r=>r.onchange=readDraft);
+  const drop=$('#drop');
+  if(drop){const file=$('#file');
+    drop.onclick=()=>file.click();drop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click()}};
+    file.onchange=()=>file.files[0]&&startDraft(file.files[0].name);
+    ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+    ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+    drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];startDraft(f?f.name:'aanmelding.pdf')});
+    $('#fromMail').onclick=fromMail;}
+  $('#cancel')?.addEventListener('click',()=>{state.draft=null;render()});
+  $('#assign')?.addEventListener('click',()=>{
+    readDraft();const d=state.draft;
+    if(!d.beh){toast('Kies eerst een behandelaar.');return}
+    const naam=d.naam.trim();if(!naam){toast('Vul de voornaam van de cliënt in.');return}
+    const max=Date.now();
+    const c=mk('n'+max,naam,d.beh,'',0,0);
+    c.via={...d.via};c.datum=d.datum||today;c.mailId=d.mailId||'';
+    if($('#f-fwd').checked)c.done.naarBeh=today;
+    state.clients.unshift(c);state.draft=null;state.tab='caseload';state.filter='Alle';save();render();
+    toast(`${naam} is toegewezen aan ${d.beh}.`)});
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;state.open=null;render()});
+$('#me').onchange=e=>{state.me=e.target.value;save();render()};
+/* ---------- Outlook ---------- */
+const MB=()=>{try{return window.Office&&Office.context&&Office.context.mailbox}catch(e){return null}};
+const curItem=()=>{const m=MB();return m&&m.item?m.item:null};
+function mailCtx(){const it=curItem();
+  if(!it)return `<div class="mailctx">Geen mail geopend. Open de aanmeldmail om de bijlage of de link te gebruiken.</div>`;
+  const from=it.from?(it.from.displayName||it.from.emailAddress):'';
+  return `<div class="mailctx">Geopende mail: <b>${esc(it.subject||'(geen onderwerp)')}</b>${from?` van ${esc(from)}`:''}</div>`}
+function fromMail(){const it=curItem();
+  if(!it){toast('Open eerst de mail met de aanmelding.');return}
+  const pdfs=(it.attachments||[]).filter(a=>/\.pdf$/i.test(a.name||'')||a.contentType==='application/pdf');
+  if(!pdfs.length){toast('Deze mail heeft geen pdf-bijlage. Bij Zivver: open de bijlage via Zivver en sleep hem in het vak.');return}
+  startDraft(pdfs[0].name+(pdfs.length>1?` (+${pdfs.length-1} andere)`:''))}
+if(window.Office&&Office.onReady){Office.onReady(()=>render())}
+render();
+</script>
+
+</body>
+</html>
