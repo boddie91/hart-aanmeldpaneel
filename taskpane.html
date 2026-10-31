@@ -103,6 +103,12 @@ section{display:flex;flex-direction:column;gap:12px}
 .chip.s{background:var(--sun-soft);color:var(--sun)}
 .chip.b{background:var(--accent-soft);color:var(--accent)}
 .chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.pas{background:transparent;color:var(--muted);border:1px dashed var(--muted)}
+.pasrow{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer}
+.pasrow:has(input:checked){border-style:dashed;border-color:var(--muted);background:var(--chip)}
+.pasrow input{margin-top:3px;width:17px;height:17px;accent-color:var(--muted);flex:none}
+.pasrow span{display:flex;flex-direction:column;gap:2px;font-size:13.5px}
+.pasrow small{color:var(--muted);font-size:12px}
 .chip.late{background:var(--late-soft);color:var(--late)}
 .chip.today{background:var(--sun-soft);color:var(--sun)}
 .todo{display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);padding:10px 0}
@@ -127,6 +133,17 @@ section{display:flex;flex-direction:column;gap:12px}
 .step.na label{text-decoration:line-through}
 .dlrow{flex-basis:100%;display:flex;align-items:center;gap:6px;padding-left:26px;font-size:12px;color:var(--muted)}
 .dlrow input{padding:2px 6px;font-size:12px}
+.doc{display:flex;flex-direction:column;gap:6px}
+.doc .thumbs{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--chip)}
+.doc .thumbs img{width:100%;display:block;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.15);background:#fff;cursor:zoom-in;user-select:none;-webkit-user-drag:none}
+.doc .head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.doc .head button{font:inherit;font-size:12px;background:none;border:0;color:var(--accent);cursor:pointer;padding:0}
+.viewer{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column}
+.viewer .vh{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--pane)}
+.viewer .vh b{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer .vb{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.viewer img{display:block;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);user-select:none;-webkit-user-drag:none}
+.demo-banner{background:var(--accent-soft);color:var(--accent)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .grid2 input,.grid2 select{width:100%;min-width:0}
 .link{background:var(--chip);border-radius:8px;padding:9px 11px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -186,10 +203,30 @@ const PDFJS=[['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
 const GRAPH='https://graph.microsoft.com/v1.0';
 const TABLE='tblCaseload', STEPTABLE='tblStappen', SHEET_SET='Instellingen', SHEET_CASE='Caseload';
 const FOLDER='Aanmeldingen verwerkt';
-const COL={naam:'Voornaam',beh:'Behandelaar',datum:'Datum aanmelding',intake:'Datum intake',ses:'Aantal behandelingen',start:'Startdatum traject',eind:'Verwachte einddatum',james:'Cliëntnr James',wg:'Via werkgever',ba:'Via bedrijfsarts',ov:'Via anders',dl:'Deadline volgende stap',mail:'Link aanmeldmail'};
+const COL={naam:'Voornaam',beh:'Behandelaar',datum:'Datum aanmelding',intake:'Datum intake',ses:'Aantal behandelingen',start:'Startdatum traject',eind:'Verwachte einddatum',james:'Cliëntnr James',wg:'Via werkgever',ba:'Via bedrijfsarts',ov:'Via anders',dl:'Deadline volgende stap',mail:'Link aanmeldmail',pas:'Passief',pasd:'Passief sinds'};
 const S_NAAR='Aanmelding naar behandelaar',S_INTAKE='Intake gepland',S_UPLOAD='Formulieren in James',S_AF='Afgerond';
 const PHASES=['Aanmeldingsfase','Intakefase','Startfase','Behandelingsfase','Afrondingsfase'];
 const VIA=[['wg','Werkgever'],['ba','Bedrijfsarts'],['ov','Anders']];
+
+/* ================= testmodus ================= */
+const DEMO_STEPS=[['Aanmelding naar behandelaar','Aanmelding doorsturen naar behandelaar',0,'S',2,'vorige',0],['Cliënt in James','Cliënt aanmaken in James',0,'B',3,'vorige',0],
+ ['Toestemmingsformulier volledig','Toestemmingsformulier compleet laten invullen',0,'B',7,'vorige',0],['Formulieren in James','Aanmeld- en toestemmingsformulier uploaden in James',0,'B',3,'vorige',0],
+ ['Intake gepland','Intake inplannen',1,'B',5,'vorige',0],['Bevestigingsmail intake verzonden','Bevestigingsmail intake verzenden',1,'B',1,'vorige',0],
+ ['Behandelplan + doelen','Behandelplan en doelen opstellen',1,'B',7,'intake',0],['Intake in James','Intakeverslag uploaden in James',1,'B',3,'intake',0],
+ ['Aantal behandelingen bepaald','Aantal behandelingen bepalen',1,'B',3,'intake',0],['Offerte verzonden','Offerte versturen',1,'S',3,'vorige',0],
+ ['Offerte akkoord','Akkoord op offerte binnenhalen',1,'S',10,'vorige',0],['Bedrijfsarts ingelicht behandeldoel','Bedrijfsarts informeren over behandeldoel',2,'B',5,'vorige',1],
+ ['1e behandeling gepland','Eerste behandeling inplannen',2,'B',7,'vorige',0],['Laatste behandeling geweest','Laatste behandeling geven',3,'B',null,'eind',0],
+ ['Bedrijfsarts ingelicht afronding','Bedrijfsarts informeren over afronding',4,'B',5,'vorige',1],['Afgerond','Traject afsluiten',4,'B',3,'vorige',0]]
+ .map(([k,l,p,w,t,base,ba])=>({k,l,p,w,t,base,ba:!!ba}));
+function demoLoad(){
+  STEPS=DEMO_STEPS;T=['Susanne','Jasmijn'];cap={Susanne:6,Jasmijn:10};mail={Susanne:{addr:'',row:2},Jasmijn:{addr:'',row:3}};
+  const mk=(row,naam,beh,ba,ago,n,eind)=>{const c={row,naam,beh,datum:add(today,-ago),intakeDatum:'',sessies:'',start:'',eind:eind!=null?add(today,eind):'',jamesNr:'',
+    via:{wg:true,ba:!!ba,ov:false},dl:'',mailId:'',passief:false,pasDatum:'',done:{},doneDate:{}};
+    let d=c.datum;STEPS.filter(s=>!s.ba||ba).slice(0,n).forEach(s=>{d=add(d,2);if(d>today)d=today;c.done[s.k]=true;c.doneDate[s.k]=d});
+    if(c.done['Intake gepland'])c.intakeDatum=add(c.doneDate['Intake gepland'],7);if(c.done['Aantal behandelingen bepaald'])c.sessies=12;return c};
+  state.clients=[mk(9001,'Noor','Jasmijn',1,2,0),mk(9002,'Bram','Susanne',0,6,1),mk(9003,'Fenna','Jasmijn',1,12,3),mk(9004,'Thijs','Jasmijn',1,18,6),
+    mk(9005,'Lotte','Susanne',0,25,9),mk(9006,'Mees','Jasmijn',1,50,13,90),mk(9007,'Hanna','Jasmijn',1,90,13,40),mk(9008,'Ilse','Jasmijn',0,110,12,15)];
+  state.emptyRows=[];state.rowCount=state.clients.length;}
 
 /* ================= hulpjes ================= */
 const $=s=>document.querySelector(s);
@@ -235,7 +272,7 @@ async function g(path,opt={}){
 let file=null;               // {driveId,itemId,name}
 let H=[],start={col:0,row:1}; // kopregel tabel, linksboven
 let STEPS=[],T=[],cap={},mail={},setHdr=[];
-const state={tab:'nieuw',me:'',filter:'',showDone:false,clients:[],draft:null,open:null,err:null,loading:true};
+const state={demo:false,tab:'nieuw',me:'',filter:'',showDone:false,clients:[],draft:null,open:null,err:null,loading:true};
 const wb=p=>`/drives/${file.driveId}/items/${file.itemId}/workbook${p}`;
 
 async function linkFile(url){
@@ -266,17 +303,25 @@ async function loadAll(){
     const c={row:start.row+1+i,naam:String(v(COL.naam)).trim(),beh:String(v(COL.beh)).trim(),datum:fromCell(v(COL.datum)),intakeDatum:fromCell(v(COL.intake)),
       sessies:v(COL.ses)===''?'':+v(COL.ses),start:fromCell(v(COL.start)),eind:fromCell(v(COL.eind)),jamesNr:String(v(COL.james)).trim(),
       via:{wg:truthy(v(COL.wg)),ba:truthy(v(COL.ba)),ov:truthy(v(COL.ov))},dl:fromCell(v(COL.dl)),mailId:String(v(COL.mail)).trim(),done:{},doneDate:{}};
+    c.passief=truthy(v(COL.pas));c.pasDatum=fromCell(v(COL.pasd));
     STEPS.forEach(s=>{c.done[s.k]=truthy(v(s.k));c.doneDate[s.k]=fromCell(v('Datum: '+s.k))});return c}).filter(c=>c.naam);
+  state.rowCount=cs.values.length-1;
   state.emptyRows=cs.values.slice(1).map((r,i)=>({row:start.row+1+i,empty:!String(r[ix(COL.naam)]).trim()})).filter(x=>x.empty).map(x=>x.row);
 }
 async function setCells(row,obj){
+  if(state.demo)return;
   for(const [name,val] of Object.entries(obj)){
     const i=H.indexOf(name);if(i<0)continue;
     const addr=colLetter(start.col+i)+row;
     await g(wb(`/worksheets/${SHEET_CASE}/range(address='${addr}')`),{method:'PATCH',body:{values:[[val]]}});
   }
 }
-async function setSetting(addr,val){await g(wb(`/worksheets/${SHEET_SET}/range(address='${addr}')`),{method:'PATCH',body:{values:[[val]]}})}
+async function ensureCol(name){
+  if(state.demo)return;
+  if(H.includes(name))return;
+  await g(wb(`/tables/${TABLE}/columns`),{method:'POST',body:{values:[[name],...Array.from({length:state.rowCount},()=>[false])]}});
+  await loadAll()}
+async function setSetting(addr,val){if(state.demo)return;await g(wb(`/worksheets/${SHEET_SET}/range(address='${addr}')`),{method:'PATCH',body:{values:[[val]]}})}
 
 /* ================= logica ================= */
 const stepsFor=c=>STEPS.filter(s=>!s.ba||c.via.ba);
@@ -296,10 +341,10 @@ function deadline(c,s){
   return c.datum?add(c.datum,s.t):null}
 function dlChip(d){if(!d)return'';if(d<today)return`<span class="chip late">te laat · ${fmt(d)}</span>`;if(d===today)return`<span class="chip today">vandaag</span>`;return`<span class="chip">uiterlijk ${fmt(d)}</span>`}
 function capacity(t,extra=0){
-  const mine=state.clients.filter(c=>c.beh===t&&active(c));
+  const all=state.clients.filter(c=>c.beh===t&&active(c)),mine=all.filter(c=>!c.passief),pas=all.length-mine.length;
   const lopend=mine.length+extra,max=cap[t]||0,ends=mine.map(c=>c.eind).filter(Boolean).sort(),over=lopend-max;
   const free=over<0?{now:true,txt:`${-over} plek${-over===1?'':'ken'} vrij`}:{now:false,txt:ends[over]?`Plek vrij rond ${fmt(ends[over])}`:'Nog geen einddatum bekend'};
-  return{lopend,beh:mine.filter(inBeh).length,max,free}}
+  return{lopend,beh:mine.filter(inBeh).length,max,free,pas}}
 const byRow=r=>state.clients.find(c=>c.row===+r);
 
 /* ================= weergave ================= */
@@ -308,10 +353,12 @@ function render(){
   $('#me').innerHTML=T.map(t=>`<option ${t===state.me?'selected':''}>${esc(t)}</option>`).join('');
   const mine=state.clients.filter(active).filter(c=>{const n=nextStep(c);return n&&owner(c,n)===state.me});
   $('#todoCount').textContent=mine.length;$('#todoCount').hidden=!mine.length;
-  if(!file){$('#main').innerHTML=viewSetup();bind();return}
+  $('#note').textContent=state.demo?'Testmodus · voorbeeldcliënten · er wordt niets opgeslagen, doorgestuurd of verplaatst':'Gekoppeld aan Excel · wijzigingen gaan direct naar het bestand';
+  $('#note').classList.toggle('demo-banner',state.demo);
+  if(!file&&!state.demo){$('#main').innerHTML=viewSetup();bind();return}
   if(state.err){$('#main').innerHTML=viewErr();bind();return}
   if(state.loading){$('#main').innerHTML='<p class="loading">Bezig met laden uit Excel…</p>';return}
-  $('#main').innerHTML=`<div class="topbar"><span>${esc(file.name)}</span><button id="reload">Vernieuwen</button></div>`+({nieuw:viewNew,caseload:viewCaseload,todo:viewTodo}[state.tab])();
+  $('#main').innerHTML=`<div class="topbar">${state.demo?'<span>Testmodus</span><button id="leaveDemo">Testmodus verlaten</button>':`<span>${esc(file.name)}</span><button id="reload">Vernieuwen</button>`}</div>`+({nieuw:viewNew,caseload:viewCaseload,todo:viewTodo}[state.tab])();
   bind();if(state.open)openSheet(state.open);
 }
 function viewSetup(){return `<section class="setup">
@@ -319,7 +366,10 @@ function viewSetup(){return `<section class="setup">
   <p>Open <b>Caseload Hart Psychologen.xlsx</b> in OneDrive, klik op <b>Delen → Koppeling kopiëren</b> en plak de link hieronder. Dit hoeft maar één keer.</p>
   <input id="shareUrl" type="url" placeholder="https://…sharepoint.com/…">
   <button class="btn primary" id="doLink">Koppelen</button>
-  <p>De eerste keer vraagt Microsoft je om in te loggen en toestemming te geven.</p></section>`}
+  <p>De eerste keer vraagt Microsoft je om in te loggen en toestemming te geven.</p>
+  <div class="or">of</div>
+  <button class="btn" id="demo">Eerst uitproberen in testmodus</button>
+  <p>In de testmodus werk je met voorbeeldcliënten. Aanmeldingen uit je mail worden wel echt uitgelezen en getoond, maar er wordt niets opgeslagen, doorgestuurd of verplaatst.</p></section>`}
 function viewErr(){const e=state.err;return `<section class="err"><b>Er ging iets mis.</b><span>${esc(e.hint||'Probeer het opnieuw. Blijft het misgaan, stuur dan de melding hieronder door.')}</span><code>${esc(e.message)}</code>
   <div style="display:flex;gap:8px"><button class="btn" id="retry">Opnieuw proberen</button><button class="btn" id="unlink">Ander bestand koppelen</button></div></section>`}
 function viaBoxes(c,pfx){return `<div class="via">${VIA.map(([k,l])=>`<label><input type="checkbox" id="${pfx}-${k}" data-via="${k}" ${c.via[k]?'checked':''}>${l}</label>`).join('')}</div>`}
@@ -333,7 +383,7 @@ function capCards(){return `<div class="cap">${T.map(t=>{const c=capacity(t);
   const cells=Array.from({length:Math.max(c.max,c.lopend)},(_,i)=>`<i class="${i<c.beh?'t':i<c.lopend?'f':''}"></i>`).join('');
   return `<div class="capcard"><div class="top"><b>${esc(t)}</b><b class="n">${c.lopend}<small> / ${c.max}</small></b></div>
     <div class="meter" aria-label="${c.beh} in behandeling, ${c.lopend-c.beh} tot start, ${c.max} plekken">${cells}</div>
-    <div class="meta"><b>${c.beh}</b> in behandeling · <b>${c.lopend-c.beh}</b> tot start</div>
+    <div class="meta"><b>${c.beh}</b> in behandeling · <b>${c.lopend-c.beh}</b> tot start${c.pas?` · <b>${c.pas}</b> passief`:''}</div>
     <div class="free ${c.free.now?'now':''}">${c.free.txt}</div>
     <label class="max" for="cap-${esc(t)}">Aantal plekken <input type="number" min="0" id="cap-${esc(t)}" data-cap="${esc(t)}" value="${c.max}"></label></div>`}).join('')}</div>`}
 function recent(){
@@ -355,11 +405,15 @@ function viewNew(){
   return `<section>
     <div class="parsed">${d.file?`Uitgelezen uit <b>${esc(d.file)}</b>${d.found?'':' (geen naam herkend)'}. Controleer de gegevens.`:'Vul de gegevens in.'}</div>
     <div class="form">
+      ${d.pages&&d.pages.length?`<div class="doc"><div class="head"><span class="fl">Aanmelding · ${d.total} pagina${d.total===1?'':"'s"}</span><button id="bigView">Groot bekijken</button></div>
+        <div class="thumbs">${d.pages.map((pg,i)=>`<img src="${pg.src}" alt="Pagina ${i+1} van de aanmelding" data-p="${i}" draggable="false">`).join('')}</div>
+        ${d.total>d.pages.length?`<span class="hint">Alleen de eerste ${d.pages.length} pagina's worden getoond.</span>`:''}
+        <span class="hint">Alleen zichtbaar zolang dit scherm open is. Er wordt niets opgeslagen.</span></div>`:''}
       <div class="field"><label for="f-naam">Voornaam cliënt</label><input id="f-naam" value="${esc(d.naam)}"></div>
       <div class="field"><span class="fl">Aangemeld via</span>${viaBoxes(d,'f')}<span class="hint">${d.via.ba?'Bedrijfsarts betrokken: terugkoppelingen aan de bedrijfsarts komen in de to do\'s.':'Geen bedrijfsarts: de terugkoppelingen aan de bedrijfsarts vervallen.'}</span></div>
       <div class="field"><label for="f-datum">Datum aanmelding</label><input id="f-datum" type="date" value="${d.datum}"></div>
       <div class="field"><span class="fl">Behandelaar</span><div class="therapists">${T.map(t=>{const a=capacity(t),b=capacity(t,1);
-        return `<label><input type="radio" name="beh" id="beh-${esc(t)}" value="${esc(t)}" ${d.beh===t?'checked':''}><b>${esc(t)}</b><small>${a.lopend} lopend → <b>${b.lopend}</b> met deze aanmelding<br>${a.beh} in behandeling · ${a.max} plekken</small><small class="free ${a.free.now?'now':''}">${a.free.txt}</small></label>`}).join('')}</div></div>
+        return `<label><input type="radio" name="beh" id="beh-${esc(t)}" value="${esc(t)}" ${d.beh===t?'checked':''}><b>${esc(t)}</b><small>${a.lopend} lopend → <b>${b.lopend}</b> met deze aanmelding<br>${a.beh} in behandeling${a.pas?` · ${a.pas} passief`:''} · ${a.max} plekken</small><small class="free ${a.free.now?'now':''}">${a.free.txt}</small></label>`}).join('')}</div></div>
       ${it?`<div class="fwd"><span class="fl">Doorsturen naar de behandelaar</span>
         <label><input type="radio" name="fwd" value="auto" ${d.fwd==='auto'?'checked':''}> Automatisch doorsturen (gewone mail met bijlage)</label>
         ${d.fwd==='auto'&&d.beh&&!fwdAddr?`<input type="email" id="f-mail" placeholder="E-mailadres van ${esc(d.beh)}" value="${esc(d.addr||'')}">`:''}
@@ -370,13 +424,13 @@ function viewNew(){
     </div></section>`}
 function viewCaseload(){
   const act=state.clients.filter(active);
-  const list=state.clients.filter(c=>state.showDone||active(c)).filter(c=>state.filter==='Alle'||c.beh===state.filter).sort((a,b)=>(active(b)-active(a))||(b.datum||'').localeCompare(a.datum||''));
+  const list=state.clients.filter(c=>state.showDone||active(c)).filter(c=>state.filter==='Alle'||c.beh===state.filter).sort((a,b)=>(active(b)-active(a))||(!!a.passief-!!b.passief)||(b.datum||'').localeCompare(a.datum||''));
   const ph=i=>act.filter(c=>c.beh===state.filter||state.filter==='Alle').filter(c=>{const n=nextStep(c);return n&&n.p===i}).length;
   return `<section><div class="phases">${PHASES.map((p,i)=>`<span>${p} <b>${ph(i)}</b></span>`).join('')}</div>
     <div class="filters">${[...T,'Alle'].map(f=>`<button class="pill" data-f="${esc(f)}" aria-pressed="${state.filter===f}">${esc(f)}</button>`).join('')}<button class="pill" id="showDone" aria-pressed="${state.showDone}">Ook afgerond</button></div>
     <div class="list">${list.length?list.map(card).join(''):'<p class="empty">Geen cliënten in deze selectie.</p>'}</div></section>`}
 function card(c){const n=nextStep(c);
-  return `<button class="card" data-open="${c.row}"><div class="row"><span class="name">${esc(c.naam)}</span></div>
+  return `<button class="card" data-open="${c.row}"><div class="row"><span class="name">${esc(c.naam)}</span>${c.passief?'<span class="chip pas">Passief</span>':''}</div>
     <div class="meta">${esc(c.beh||'geen behandelaar')} · via ${viaTxt(c)} · ${c.eind?'einde ~'+fmt(c.eind):'aangemeld '+fmt(c.datum)}</div>
     <div class="bar">${stepsFor(c).map(s=>`<i class="${c.done[s.k]?'d':''}"></i>`).join('')}</div>
     <div class="next">${active(c)&&n?`<span class="chip">${PHASES[n.p]}</span> ${esc(n.l)} <span class="chip ${n.w==='S'?'s':'b'}">${esc(owner(c,n))}</span>`:`<span class="chip ok">Afgerond${c.doneDate[S_AF]?' '+fmt(c.doneDate[S_AF]):''}</span>`}</div></button>`}
@@ -387,7 +441,7 @@ function viewTodo(){
     ${groups.map(gr=>{const mine=items.filter(x=>owner(x.c,x.n)===gr).sort((a,b)=>(a.d||'9').localeCompare(b.d||'9'));const late=mine.filter(x=>x.d&&x.d<today).length;
       return `<div class="group"><div class="lbl">${gr===state.me?'Mijn eerstvolgende stappen':esc(gr)} · ${mine.length}${late?` · ${late} te laat`:''}</div>
       ${mine.length?mine.map(({c,n,d})=>`<div class="todo"><input type="checkbox" id="td-${c.row}" data-done="${c.row}" data-k="${esc(n.k)}" aria-label="${esc(n.l)} afvinken" ${n.k===S_INTAKE?'disabled title="Kies de datum van de intake"':''}>
-        <div class="t"><b>${esc(n.l)} ${dlChip(d)}</b><span class="meta">${esc(c.naam)} · ${esc(c.beh)} · ${PHASES[n.p]}</span>
+        <div class="t"><b>${esc(n.l)} ${dlChip(d)}</b><span class="meta">${esc(c.naam)} · ${esc(c.beh)} · ${PHASES[n.p]}${c.passief?' · passief':''}</span>
         ${n.k===S_INTAKE?`<span class="dlrow" style="padding-left:0"><label for="ti-${c.row}">Intake op</label><input type="date" id="ti-${c.row}" data-tintake="${c.row}"></span>`:''}</div>
         <button data-open="${c.row}">Open</button></div>`).join(''):'<p class="empty">Niets openstaand.</p>'}</div>`}).join('')}</section>`}
 
@@ -397,6 +451,7 @@ function openSheet(row){
   const n=nextStep(c);const el=document.createElement('div');el.className='sheet';
   el.innerHTML=`<div class="sheet-head"><button class="btn" id="close" aria-label="Terug">←</button><h2>${esc(c.naam)}</h2></div>
   <div class="sheet-body">
+${active(c)?`<label class="pasrow" for="s-pas"><input type="checkbox" id="s-pas" ${c.passief?'checked':''}><span><b>Passief</b><small>${c.passief&&c.pasDatum?'Sinds '+fmt(c.pasDatum)+'. ':''}Cliënt komt minder vaak en telt niet mee voor de plekken van ${esc(c.beh||'de behandelaar')}.</small></span></label>`:''}
     <div class="grid2">
       <div class="field"><label for="s-beh">Behandelaar</label><select id="s-beh" data-f="${COL.beh}"><option value=""></option>${T.map(t=>`<option ${c.beh===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
       <div class="field"><label for="s-james">Cliëntnr. James</label><input id="s-james" data-f="${COL.james}" value="${esc(c.jamesNr)}"></div>
@@ -426,6 +481,8 @@ function openSheet(row){
   el.querySelectorAll('[data-intake]').forEach(i=>i.onchange=()=>{if(!i.value)return;const v=i.value;
     save({[COL.intake]:toSerial(v),[S_INTAKE]:true,['Datum: '+S_INTAKE]:toSerial(today),[COL.dl]:''},()=>{c.intakeDatum=v;c.done[S_INTAKE]=true;c.doneDate[S_INTAKE]=today;c.dl='';toast(`Intake ingepland op ${fmt(v)}.`)})});
   el.querySelectorAll('[data-dl]').forEach(i=>i.onchange=()=>{const v=i.value;save({[COL.dl]:v?toSerial(v):''},()=>{c.dl=v})});
+  el.querySelector('#s-pas')?.addEventListener('change',e=>{const on=e.target.checked;
+    run(async()=>{await ensureCol(COL.pas);const cc=byRow(c.row)||c;await setCells(cc.row,{[COL.pas]:on,[COL.pasd]:on?toSerial(today):''});cc.passief=on;cc.pasDatum=on?today:'';c.passief=on;toast(on?`${c.naam} staat op passief. Er komt een plek vrij bij ${c.beh}.`:`${c.naam} telt weer mee als lopend traject.`)},()=>openSheet(c.row))});
   el.querySelectorAll('.sheet-body [data-via]').forEach(cb=>cb.onchange=()=>{const k=cb.dataset.via,on=cb.checked;save({[COL[k]]:on},()=>{c.via[k]=on})});
   const keyOf={[COL.beh]:'beh',[COL.james]:'jamesNr',[COL.ses]:'sessies',[COL.intake]:'intakeDatum',[COL.datum]:'datum',[COL.start]:'start',[COL.eind]:'eind'};
   el.querySelectorAll('.sheet-body [data-f]').forEach(i=>i.onchange=()=>{const f=i.dataset.f,v=i.value;
@@ -438,7 +495,7 @@ let busy=false;
 async function run(fn,after){if(busy)return;busy=true;$('#pane').classList.add('busy');
   try{await fn()}catch(e){console.error(e);toast('Opslaan in Excel lukte niet: '+e.message,6000);await refresh(false)}
   finally{busy=false;$('#pane').classList.remove('busy');if(after)after();render()}}
-async function refresh(show=true){state.err=null;if(show){state.loading=true;render()}
+async function refresh(show=true){if(state.demo){render();return}state.err=null;if(show){state.loading=true;render()}
   try{await loadAll()}catch(e){state.err=e;
     if(e.status===404)e.hint='Het bestand of de tabel is niet gevonden. Staat de Excel nog op dezelfde plek, en heet de tabel nog tblCaseload?';
     else if(e.status===401||e.status===403||/consent|AADSTS/i.test(e.message))e.hint='Je hebt (nog) geen toegang. Log opnieuw in, of vraag de beheerder om toestemming te geven voor de app "Hart Aanmeldingen".';
@@ -447,13 +504,17 @@ async function refresh(show=true){state.err=null;if(show){state.loading=true;ren
 
 let pdfLib=null;
 function loadScript(u){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=u;s.onload=res;s.onerror=()=>rej(new Error('kon '+u+' niet laden'));document.head.appendChild(s)})}
-async function pdfText(buf){
+async function pdfRead(buf){
   if(!pdfLib){for(const [u,w] of PDFJS){try{await loadScript(u);window.pdfjsLib.GlobalWorkerOptions.workerSrc=w;pdfLib=window.pdfjsLib;break}catch(e){}}}
-  if(!pdfLib)return '';
-  const doc=await pdfLib.getDocument({data:buf}).promise;let out='';
-  for(let p=1;p<=Math.min(doc.numPages,6);p++){const pg=await doc.getPage(p);const tc=await pg.getTextContent();
-    let line='',lastY=null;tc.items.forEach(it=>{const y=it.transform[5];if(lastY!==null&&Math.abs(y-lastY)>2){out+=line+'\n';line=''}line+=it.str+' ';lastY=y});out+=line+'\n'}
-  return out}
+  if(!pdfLib)return {text:'',pages:[],total:0};
+  const doc=await pdfLib.getDocument({data:buf}).promise;let out='';const pages=[];const MAXP=10;
+  for(let p=1;p<=Math.min(doc.numPages,MAXP);p++){const pg=await doc.getPage(p);
+    if(p<=6){const tc=await pg.getTextContent();
+      let line='',lastY=null;tc.items.forEach(it=>{const y=it.transform[5];if(lastY!==null&&Math.abs(y-lastY)>2){out+=line+'\n';line=''}line+=it.str+' ';lastY=y});out+=line+'\n'}
+    const vp=pg.getViewport({scale:1.6});const cv=document.createElement('canvas');cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);
+    await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;pages.push({src:cv.toDataURL('image/png'),w:cv.width,h:cv.height});cv.width=cv.height=0;}
+  try{doc.destroy()}catch(e){}
+  return {text:out,pages,total:doc.numPages}}
 function parse(text){
   const r={naam:'',via:{wg:/werkgever/i.test(text),ba:/bedrijfsarts/i.test(text),ov:false},found:false};
   const N="([A-ZÀ-Þ][a-zà-ÿ'\\-]+)";
@@ -462,10 +523,19 @@ function parse(text){
   for(const p of pats){const m=text.match(p);if(m){r.naam=m[1];r.found=true;break}}
   if(!r.via.wg&&!r.via.ba)r.via.wg=true;return r}
 async function startDraft(name,buf){
-  let info={naam:'',via:{wg:true,ba:false,ov:false},found:false};
-  if(buf){try{info=parse(await pdfText(buf))}catch(e){console.warn(e)}}
+  let info={naam:'',via:{wg:true,ba:false,ov:false},found:false},rd={pages:[],total:0};
+  if(buf){toast('Aanmelding wordt uitgelezen…',1500);try{rd=await pdfRead(buf);info=parse(rd.text)}catch(e){console.warn(e);toast('Deze pdf kon niet worden uitgelezen. Vul de gegevens zelf in.',4000)}}
   const it=curItem(),hasPdf=it&&(it.attachments||[]).some(a=>/\.pdf$/i.test(a.name||''));
-  state.draft={file:name,naam:info.naam,found:info.found,via:info.via,datum:today,beh:'',fwd:hasPdf?'auto':'zivver',move:true,addr:''};render()}
+  state.draft={file:name,pages:rd.pages,total:rd.total,naam:info.naam,found:info.found,via:info.via,datum:today,beh:'',fwd:hasPdf?'auto':'zivver',move:true,addr:''};render()}
+function openViewer(start){const d=state.draft;if(!d||!d.pages||!d.pages.length)return;
+  let z=1;const el=document.createElement('div');el.className='viewer';
+  const draw=()=>{const w=Math.round(el.clientWidth*z-24);el.querySelector('.vb').innerHTML=d.pages.map((pg,i)=>`<img src="${pg.src}" alt="Pagina ${i+1}" draggable="false" style="width:${w}px">`).join('')};
+  el.innerHTML=`<div class="vh"><button class="btn" id="vClose" aria-label="Sluiten">←</button><b>${esc(d.file||'Aanmelding')}</b><button class="btn" id="vOut" aria-label="Kleiner">−</button><button class="btn" id="vIn" aria-label="Groter">+</button></div><div class="vb"></div>`;
+  document.body.appendChild(el);draw();
+  const imgs=el.querySelectorAll('img');if(imgs[start])imgs[start].scrollIntoView();
+  el.querySelector('#vClose').onclick=()=>el.remove();
+  el.querySelector('#vIn').onclick=()=>{z=Math.min(3,z+.5);draw()};el.querySelector('#vOut').onclick=()=>{z=Math.max(1,z-.5);draw()};
+  el.addEventListener('contextmenu',e=>e.preventDefault());}
 function readDraft(){const d=state.draft;if(!d)return;
   const n=$('#f-naam');if(n)d.naam=n.value;const dt=$('#f-datum');if(dt)d.datum=dt.value;
   const r=document.querySelector('input[name=beh]:checked');if(r)d.beh=r.value;
@@ -486,7 +556,12 @@ async function assign(){
   if(!naam){toast('Vul de voornaam van de cliënt in.');return}
   if(!d.beh){toast('Kies eerst een behandelaar.');return}
   const it=curItem();
-  if(it&&d.fwd==='auto'&&!(mail[d.beh]&&mail[d.beh].addr)&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.addr||'')){toast('Vul het e-mailadres van '+d.beh+' in om automatisch door te sturen.');return}
+  if(!state.demo&&it&&d.fwd==='auto'&&!(mail[d.beh]&&mail[d.beh].addr)&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.addr||'')){toast('Vul het e-mailadres van '+d.beh+' in om automatisch door te sturen.');return}
+  if(state.demo){
+    const c={row:Date.now(),naam,beh:d.beh,datum:d.datum||today,intakeDatum:'',sessies:'',start:'',eind:'',jamesNr:'',via:{...d.via},dl:'',mailId:'',passief:false,pasDatum:'',done:{},doneDate:{}};
+    if(d.fwd==='auto'&&it){c.done[S_NAAR]=true;c.doneDate[S_NAAR]=today}
+    state.clients.unshift(c);state.draft=null;state.tab='caseload';state.filter=d.beh;render();
+    toast(`Testmodus: ${naam} is toegewezen aan ${d.beh}. In het echt zou de mail nu ${d.fwd==='auto'?'worden doorgestuurd en ':''}${d.move?'naar "'+FOLDER+'" gaan':'blijven staan'}.`,6000);return}
   await run(async()=>{
     const log=[];
     // 1. mail: markeren, doorsturen, verplaatsen
@@ -506,7 +581,7 @@ async function assign(){
         const moved=await g(`/me/messages/${restId}/move`,{method:'POST',body:{destinationId:fid}});restId=moved.id;log.push('verplaatst');}
     }
     // 2. Excel-regel
-    const vals={[COL.naam]:naam,[COL.beh]:d.beh,[COL.datum]:toSerial(d.datum||today),[COL.wg]:!!d.via.wg,[COL.ba]:!!d.via.ba,[COL.ov]:!!d.via.ov,[COL.mail]:restId};
+    const vals={[COL.naam]:naam,[COL.beh]:d.beh,[COL.datum]:toSerial(d.datum||today),[COL.wg]:!!d.via.wg,[COL.ba]:!!d.via.ba,[COL.ov]:!!d.via.ov,[COL.pas]:false,[COL.pasd]:'',[COL.mail]:restId};
     STEPS.forEach(s=>{vals[s.k]=false;vals['Datum: '+s.k]=''});
     if(d.fwd==='auto'&&it){vals[S_NAAR]=true;vals['Datum: '+S_NAAR]=toSerial(today)}
     const row=state.emptyRows[0];
@@ -525,6 +600,10 @@ function bind(){
   $('#retry')?.addEventListener('click',()=>refresh());
   $('#unlink')?.addEventListener('click',()=>{file=null;store.set('file',null);state.err=null;render()});
   $('#reload')?.addEventListener('click',()=>refresh());
+  $('#demo')?.addEventListener('click',()=>{state.demo=true;state.err=null;demoLoad();state.filter='Jasmijn';if(!T.includes(state.me))state.me='Susanne';state.tab='nieuw';render()});
+  $('#leaveDemo')?.addEventListener('click',()=>{state.demo=false;state.draft=null;state.open=null;state.clients=[];T=[];if(file)refresh();else render()});
+  $('#bigView')?.addEventListener('click',()=>openViewer(0));
+  document.querySelectorAll('.doc .thumbs img').forEach(im=>im.onclick=()=>openViewer(+im.dataset.p));
   document.querySelectorAll('[data-f]').forEach(b=>{if(b.tagName==='BUTTON')b.onclick=()=>{state.filter=b.dataset.f;render()}});
   $('#showDone')?.addEventListener('click',()=>{state.showDone=!state.showDone;render()});
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openSheet(b.dataset.open));
@@ -547,7 +626,7 @@ function bind(){
     ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
     drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)take(f);else toast('Dit kon niet als bestand worden gelezen. Sla de pdf eerst op en kies hem via klikken.',5000)});
     $('#fromMail').onclick=fromMail;$('#manual').onclick=()=>startDraft('',null);}
-  $('#cancel')?.addEventListener('click',()=>{state.draft=null;render()});
+  $('#cancel')?.addEventListener('click',()=>{state.draft=null;document.querySelector('.viewer')?.remove();render()});
   $('#assign')?.addEventListener('click',assign);
 }
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;state.open=null;render()});
