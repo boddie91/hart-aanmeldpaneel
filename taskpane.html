@@ -156,6 +156,13 @@ body{padding-block:0 24px}
 .mailctx{font-size:12px;color:var(--muted);background:var(--chip);border-radius:7px;padding:7px 10px}
 .mailctx b{color:var(--ink)}
 .pdfs{display:flex;flex-direction:column;gap:6px}
+.done-banner{background:var(--ok-soft);color:var(--ok);border-radius:8px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px}
+.done-banner b{color:var(--ink)}
+.chip.tmp{background:var(--sun-soft);color:var(--sun)}
+.namefix{display:flex;gap:6px;align-items:center;margin-top:4px}
+.namefix input{flex:1;min-width:0;padding:4px 8px;font-size:13px}
+.wordview{width:100%;height:340px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.viewer iframe{flex:1;width:100%;border:0;background:#fff}
 </style>
 <style>
 .setup{display:flex;flex-direction:column;gap:12px}
@@ -198,12 +205,15 @@ const CLIENT_ID='53cfd755-3237-4075-81cb-a0887cc7bb69';
 const TENANT_ID='e4fa15f0-caab-49a0-9227-1c458d5c210a';
 const SCOPES=['Files.ReadWrite.All','Mail.ReadWrite','Mail.Send'];
 const MSAL_URLS=['https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/+esm','https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/+esm'];
+const MAMMOTH=['https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js','https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js','https://unpkg.com/mammoth@1.6.0/mammoth.browser.min.js'];
+const ATT_RE=/\.(pdf|docx|doc)$/i;
+const isAtt=a=>ATT_RE.test(a.name||'')||/pdf|wordprocessingml|msword/i.test(a.contentType||'');
 const PDFJS=[['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'],
              ['https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js','https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js']];
 const GRAPH='https://graph.microsoft.com/v1.0';
 const TABLE='tblCaseload', STEPTABLE='tblStappen', SHEET_SET='Instellingen', SHEET_CASE='Caseload';
 const FOLDER='Aanmeldingen verwerkt';
-const COL={naam:'Voornaam',beh:'Behandelaar',datum:'Datum aanmelding',intake:'Datum intake',ses:'Aantal behandelingen',start:'Startdatum traject',eind:'Verwachte einddatum',james:'Cliëntnr James',wg:'Via werkgever',ba:'Via bedrijfsarts',ov:'Via anders',dl:'Deadline volgende stap',mail:'Link aanmeldmail',pas:'Passief',pasd:'Passief sinds'};
+const COL={naam:'Voornaam',beh:'Behandelaar',datum:'Datum aanmelding',intake:'Datum intake',ses:'Aantal behandelingen',start:'Startdatum traject',eind:'Verwachte einddatum',james:'Cliëntnr James',wg:'Via werkgever',ba:'Via bedrijfsarts',ov:'Via anders',dl:'Deadline volgende stap',mail:'Link aanmeldmail',afz:'Afzender aanmelding',msg:'Bericht-ID',pas:'Passief',pasd:'Passief sinds'};
 const S_NAAR='Aanmelding naar behandelaar',S_INTAKE='Intake gepland',S_UPLOAD='Formulieren in James',S_AF='Afgerond';
 const PHASES=['Aanmeldingsfase','Intakefase','Startfase','Behandelingsfase','Afrondingsfase'];
 const VIA=[['wg','Werkgever'],['ba','Bedrijfsarts'],['ov','Anders']];
@@ -303,6 +313,7 @@ async function loadAll(){
     const c={row:start.row+1+i,naam:String(v(COL.naam)).trim(),beh:String(v(COL.beh)).trim(),datum:fromCell(v(COL.datum)),intakeDatum:fromCell(v(COL.intake)),
       sessies:v(COL.ses)===''?'':+v(COL.ses),start:fromCell(v(COL.start)),eind:fromCell(v(COL.eind)),jamesNr:String(v(COL.james)).trim(),
       via:{wg:truthy(v(COL.wg)),ba:truthy(v(COL.ba)),ov:truthy(v(COL.ov))},dl:fromCell(v(COL.dl)),mailId:String(v(COL.mail)).trim(),done:{},doneDate:{}};
+    c.afzender=String(v(COL.afz)).trim();c.msgId=String(v(COL.msg)).trim();
     c.passief=truthy(v(COL.pas));c.pasDatum=fromCell(v(COL.pasd));
     STEPS.forEach(s=>{c.done[s.k]=truthy(v(s.k));c.doneDate[s.k]=fromCell(v('Datum: '+s.k))});return c}).filter(c=>c.naam);
   state.rowCount=cs.values.length-1;
@@ -316,10 +327,10 @@ async function setCells(row,obj){
     await g(wb(`/worksheets/${SHEET_CASE}/range(address='${addr}')`),{method:'PATCH',body:{values:[[val]]}});
   }
 }
-async function ensureCol(name){
+async function ensureCol(name,fill=false){
   if(state.demo)return;
   if(H.includes(name))return;
-  await g(wb(`/tables/${TABLE}/columns`),{method:'POST',body:{values:[[name],...Array.from({length:state.rowCount},()=>[false])]}});
+  await g(wb(`/tables/${TABLE}/columns`),{method:'POST',body:{values:[[name],...Array.from({length:state.rowCount},()=>[fill])]}});
   await loadAll()}
 async function setSetting(addr,val){if(state.demo)return;await g(wb(`/worksheets/${SHEET_SET}/range(address='${addr}')`),{method:'PATCH',body:{values:[[val]]}})}
 
@@ -375,6 +386,15 @@ function viewErr(){const e=state.err;return `<section class="err"><b>Er ging iet
 function viaBoxes(c,pfx){return `<div class="via">${VIA.map(([k,l])=>`<label><input type="checkbox" id="${pfx}-${k}" data-via="${k}" ${c.via[k]?'checked':''}>${l}</label>`).join('')}</div>`}
 const MB=()=>{try{return Office.context.mailbox}catch(e){return null}};
 const curItem=()=>{const m=MB();return m&&m.item?m.item:null};
+const TMP_RE=/^Aanmelding \d{1,2}-\d{1,2}/;
+const isTmp=c=>!c.naam||TMP_RE.test(c.naam);
+function tmpName(datum){const [y,m,dd]=(datum||today).split('-');const base=`Aanmelding ${dd}-${m}`;
+  const n=state.clients.filter(c=>c.naam===base||c.naam.startsWith(base+' (')).length;return n?`${base} (${n+1})`:base}
+function mailInfo(){const it=curItem();if(!it)return null;
+  let d='';try{d=it.dateTimeCreated?isoOf(new Date(it.dateTimeCreated)):''}catch(e){}
+  const from=it.from?(it.from.displayName||it.from.emailAddress||''):'';
+  return{id:it.internetMessageId||'',datum:d,from}}
+function assignedFor(){const m=mailInfo();if(!m||!m.id)return null;return state.clients.find(c=>c.msgId&&c.msgId===m.id)||null}
 function mailCtx(){const it=curItem();
   if(!it)return `<div class="mailctx">Geen mail geopend. Open de aanmeldmail om de bijlage te gebruiken en de mail te markeren.</div>`;
   const from=it.from?(it.from.displayName||it.from.emailAddress):'';
@@ -395,21 +415,27 @@ function recent(){
     <div class="next">${d} van ${a.length} verwerkt · ${esc(n.l)} ${dlChip(deadline(c,n))}</div></button>`}).join(''):'<p class="empty">Alle aanmeldingen zijn verwerkt.</p>'}</div>`}
 function viewNew(){
   const d=state.draft;
+  const done=assignedFor();
   if(!d)return `<section>${mailCtx()}
-    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Kies of sleep een aanmelding"><strong>Sleep hier de aanmelding</strong><small>Pdf uit Zivver, of klik om een bestand te kiezen</small><input type="file" id="file" accept="application/pdf" hidden></div>
+    ${done?`<div class="done-banner"><span>✓ Deze aanmelding is al toegewezen aan <b>${esc(done.beh)}</b> als <b>${esc(done.naam)}</b>, op ${fmt(done.datum)}.</span><button class="btn" data-open="${done.row}">Bekijk in caseload</button></div>`:''}
+    ${curItem()&&!done?`<button class="btn primary" id="quick">Toewijzen, naam later invullen</button><span class="hint">Handig bij Zivver: de bijlage hoeft dan niet gedownload te worden. De behandelaar vult de naam in bij haar eerste taak.</span><div class="or">of met de bijlage</div>`:''}
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Kies of sleep een aanmelding"><strong>Sleep hier de aanmelding</strong><small>Word of pdf, uit Zivver of je verkenner. Of klik om een bestand te kiezen</small><input type="file" id="file" accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword" hidden></div>
     <div class="or">of</div><button class="btn" id="fromMail">Bijlage uit deze mail gebruiken</button>
-    <button class="btn" id="manual" style="background:none;border:0;color:var(--accent);padding:0;font-size:12.5px">Zonder pdf invullen</button>
-    <p class="privacy">De pdf wordt alleen in dit paneel uitgelezen en nergens opgeslagen. In Excel komen de voornaam, via wie de aanmelding loopt en de behandelaar.</p>
+    <button class="btn" id="manual" style="background:none;border:0;color:var(--accent);padding:0;font-size:12.5px">Zonder bijlage invullen</button>
+    <p class="privacy">De bijlage wordt alleen in dit paneel uitgelezen en nergens opgeslagen. In Excel komen de voornaam, via wie de aanmelding loopt en de behandelaar.</p>
     <div class="lbl">Plekken per behandelaar</div>${capCards()}${recent()}</section>`;
   const it=curItem(),fwdAddr=d.beh&&mail[d.beh]?mail[d.beh].addr:'';
   return `<section>
     <div class="parsed">${d.file?`Uitgelezen uit <b>${esc(d.file)}</b>${d.found?'':' (geen naam herkend)'}. Controleer de gegevens.`:'Vul de gegevens in.'}</div>
     <div class="form">
+      ${d.html?`<div class="doc"><div class="head"><span class="fl">Aanmelding · Word</span><button id="bigView">Groot bekijken</button></div>
+        <iframe class="wordview" sandbox title="Aanmelding" srcdoc="${esc(wordDoc(d.html))}"></iframe>
+        <span class="hint">Alleen zichtbaar zolang dit scherm open is. Er wordt niets opgeslagen.</span></div>`:''}
       ${d.pages&&d.pages.length?`<div class="doc"><div class="head"><span class="fl">Aanmelding · ${d.total} pagina${d.total===1?'':"'s"}</span><button id="bigView">Groot bekijken</button></div>
         <div class="thumbs">${d.pages.map((pg,i)=>`<img src="${pg.src}" alt="Pagina ${i+1} van de aanmelding" data-p="${i}" draggable="false">`).join('')}</div>
         ${d.total>d.pages.length?`<span class="hint">Alleen de eerste ${d.pages.length} pagina's worden getoond.</span>`:''}
         <span class="hint">Alleen zichtbaar zolang dit scherm open is. Er wordt niets opgeslagen.</span></div>`:''}
-      <div class="field"><label for="f-naam">Voornaam cliënt</label><input id="f-naam" value="${esc(d.naam)}"></div>
+      <div class="field"><label for="f-naam">Voornaam cliënt</label><input id="f-naam" value="${esc(d.naam)}" placeholder="Leeg laten: wordt &quot;${esc(tmpName(d.datum))}&quot;"><span class="hint">Mag leeg blijven. De behandelaar vult de naam later in.</span></div>
       <div class="field"><span class="fl">Aangemeld via</span>${viaBoxes(d,'f')}<span class="hint">${d.via.ba?'Bedrijfsarts betrokken: terugkoppelingen aan de bedrijfsarts komen in de to do\'s.':'Geen bedrijfsarts: de terugkoppelingen aan de bedrijfsarts vervallen.'}</span></div>
       <div class="field"><label for="f-datum">Datum aanmelding</label><input id="f-datum" type="date" value="${d.datum}"></div>
       <div class="field"><span class="fl">Behandelaar</span><div class="therapists">${T.map(t=>{const a=capacity(t),b=capacity(t,1);
@@ -430,7 +456,7 @@ function viewCaseload(){
     <div class="filters">${[...T,'Alle'].map(f=>`<button class="pill" data-f="${esc(f)}" aria-pressed="${state.filter===f}">${esc(f)}</button>`).join('')}<button class="pill" id="showDone" aria-pressed="${state.showDone}">Ook afgerond</button></div>
     <div class="list">${list.length?list.map(card).join(''):'<p class="empty">Geen cliënten in deze selectie.</p>'}</div></section>`}
 function card(c){const n=nextStep(c);
-  return `<button class="card" data-open="${c.row}"><div class="row"><span class="name">${esc(c.naam)}</span>${c.passief?'<span class="chip pas">Passief</span>':''}</div>
+  return `<button class="card" data-open="${c.row}"><div class="row"><span class="name">${esc(c.naam)}</span>${isTmp(c)?'<span class="chip tmp">Naam nog invullen</span>':''}${c.passief?'<span class="chip pas">Passief</span>':''}</div>
     <div class="meta">${esc(c.beh||'geen behandelaar')} · via ${viaTxt(c)} · ${c.eind?'einde ~'+fmt(c.eind):'aangemeld '+fmt(c.datum)}</div>
     <div class="bar">${stepsFor(c).map(s=>`<i class="${c.done[s.k]?'d':''}"></i>`).join('')}</div>
     <div class="next">${active(c)&&n?`<span class="chip">${PHASES[n.p]}</span> ${esc(n.l)} <span class="chip ${n.w==='S'?'s':'b'}">${esc(owner(c,n))}</span>`:`<span class="chip ok">Afgerond${c.doneDate[S_AF]?' '+fmt(c.doneDate[S_AF]):''}</span>`}</div></button>`}
@@ -441,7 +467,8 @@ function viewTodo(){
     ${groups.map(gr=>{const mine=items.filter(x=>owner(x.c,x.n)===gr).sort((a,b)=>(a.d||'9').localeCompare(b.d||'9'));const late=mine.filter(x=>x.d&&x.d<today).length;
       return `<div class="group"><div class="lbl">${gr===state.me?'Mijn eerstvolgende stappen':esc(gr)} · ${mine.length}${late?` · ${late} te laat`:''}</div>
       ${mine.length?mine.map(({c,n,d})=>`<div class="todo"><input type="checkbox" id="td-${c.row}" data-done="${c.row}" data-k="${esc(n.k)}" aria-label="${esc(n.l)} afvinken" ${n.k===S_INTAKE?'disabled title="Kies de datum van de intake"':''}>
-        <div class="t"><b>${esc(n.l)} ${dlChip(d)}</b><span class="meta">${esc(c.naam)} · ${esc(c.beh)} · ${PHASES[n.p]}${c.passief?' · passief':''}</span>
+        <div class="t"><b>${esc(n.l)} ${dlChip(d)}</b><span class="meta">${esc(c.naam)}${c.afzender&&isTmp(c)?' · van '+esc(c.afzender):''} · ${esc(c.beh)} · ${PHASES[n.p]}${c.passief?' · passief':''}</span>
+        ${isTmp(c)&&owner(c,n)!=='Susanne'?`<span class="namefix"><input id="tn-${c.row}" data-tname="${c.row}" placeholder="Voornaam cliënt invullen" aria-label="Voornaam cliënt"><button class="btn" data-tnsave="${c.row}" style="padding:4px 10px">Opslaan</button></span>`:''}
         ${n.k===S_INTAKE?`<span class="dlrow" style="padding-left:0"><label for="ti-${c.row}">Intake op</label><input type="date" id="ti-${c.row}" data-tintake="${c.row}"></span>`:''}</div>
         <button data-open="${c.row}">Open</button></div>`).join(''):'<p class="empty">Niets openstaand.</p>'}</div>`}).join('')}</section>`}
 
@@ -453,6 +480,7 @@ function openSheet(row){
   <div class="sheet-body">
 ${active(c)?`<label class="pasrow" for="s-pas"><input type="checkbox" id="s-pas" ${c.passief?'checked':''}><span><b>Passief</b><small>${c.passief&&c.pasDatum?'Sinds '+fmt(c.pasDatum)+'. ':''}Cliënt komt minder vaak en telt niet mee voor de plekken van ${esc(c.beh||'de behandelaar')}.</small></span></label>`:''}
     <div class="grid2">
+      <div class="field" style="grid-column:1/-1"><label for="s-naam">Voornaam cliënt</label><input id="s-naam" data-f="${COL.naam}" value="${isTmp(c)?'':esc(c.naam)}" placeholder="${esc(c.naam)}">${c.afzender?`<span class="hint">Aanmelding van ${esc(c.afzender)}</span>`:''}</div>
       <div class="field"><label for="s-beh">Behandelaar</label><select id="s-beh" data-f="${COL.beh}"><option value=""></option>${T.map(t=>`<option ${c.beh===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
       <div class="field"><label for="s-james">Cliëntnr. James</label><input id="s-james" data-f="${COL.james}" value="${esc(c.jamesNr)}"></div>
       <div class="field"><label for="s-ses">Aantal behandelingen</label><select id="s-ses" data-f="${COL.ses}" data-num="1"><option value="">Kies…</option>${[5,8,12].map(x=>`<option ${+c.sessies===x?'selected':''}>${x}</option>`).join('')}</select></div>
@@ -484,8 +512,9 @@ ${active(c)?`<label class="pasrow" for="s-pas"><input type="checkbox" id="s-pas"
   el.querySelector('#s-pas')?.addEventListener('change',e=>{const on=e.target.checked;
     run(async()=>{await ensureCol(COL.pas);const cc=byRow(c.row)||c;await setCells(cc.row,{[COL.pas]:on,[COL.pasd]:on?toSerial(today):''});cc.passief=on;cc.pasDatum=on?today:'';c.passief=on;toast(on?`${c.naam} staat op passief. Er komt een plek vrij bij ${c.beh}.`:`${c.naam} telt weer mee als lopend traject.`)},()=>openSheet(c.row))});
   el.querySelectorAll('.sheet-body [data-via]').forEach(cb=>cb.onchange=()=>{const k=cb.dataset.via,on=cb.checked;save({[COL[k]]:on},()=>{c.via[k]=on})});
-  const keyOf={[COL.beh]:'beh',[COL.james]:'jamesNr',[COL.ses]:'sessies',[COL.intake]:'intakeDatum',[COL.datum]:'datum',[COL.start]:'start',[COL.eind]:'eind'};
+  const keyOf={[COL.naam]:'naam',[COL.beh]:'beh',[COL.james]:'jamesNr',[COL.ses]:'sessies',[COL.intake]:'intakeDatum',[COL.datum]:'datum',[COL.start]:'start',[COL.eind]:'eind'};
   el.querySelectorAll('.sheet-body [data-f]').forEach(i=>i.onchange=()=>{const f=i.dataset.f,v=i.value;
+    if(f===COL.naam&&!v.trim()){i.value='';return}
     save({[f]:i.dataset.date?toSerial(v):i.dataset.num?(v?+v:''):v},()=>{c[keyOf[f]]=i.dataset.num?(v?+v:''):v})});
   el.querySelector('#openMail')?.addEventListener('click',()=>{try{const id=MB().convertToEwsId(c.mailId,Office.MailboxEnums.RestVersion.v2_0);MB().displayMessageForm(id)}catch(e){toast('De aanmeldmail kon niet worden geopend. Hij staat in het postvak van degene die hem heeft toegewezen.')}});
 }
@@ -504,6 +533,15 @@ async function refresh(show=true){if(state.demo){render();return}state.err=null;
 
 let pdfLib=null;
 function loadScript(u){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=u;s.onload=res;s.onerror=()=>rej(new Error('kon '+u+' niet laden'));document.head.appendChild(s)})}
+let mammothLib=null;
+async function docxRead(buf){
+  if(!mammothLib){for(const u of MAMMOTH){try{await loadScript(u);if(window.mammoth){mammothLib=window.mammoth;break}}catch(e){}}}
+  if(!mammothLib)throw new Error('Word-lezer kon niet laden');
+  const ab=buf.buffer.slice(buf.byteOffset,buf.byteOffset+buf.byteLength);
+  const [h,t]=await Promise.all([mammothLib.convertToHtml({arrayBuffer:ab}),mammothLib.extractRawText({arrayBuffer:ab.slice(0)})]);
+  const tmp=document.createElement('div');tmp.innerHTML=h.value;tmp.querySelectorAll('script,iframe,object,embed,link,style').forEach(x=>x.remove());
+  tmp.querySelectorAll('*').forEach(x=>[...x.attributes].forEach(a=>{if(/^on/i.test(a.name)||(a.name==='href'&&!/^https?:/i.test(a.value)))x.removeAttribute(a.name)}));
+  return {text:t.value,html:tmp.innerHTML,pages:[],total:0}}
 async function pdfRead(buf){
   if(!pdfLib){for(const [u,w] of PDFJS){try{await loadScript(u);window.pdfjsLib.GlobalWorkerOptions.workerSrc=w;pdfLib=window.pdfjsLib;break}catch(e){}}}
   if(!pdfLib)return {text:'',pages:[],total:0};
@@ -518,16 +556,25 @@ async function pdfRead(buf){
 function parse(text){
   const r={naam:'',via:{wg:/werkgever/i.test(text),ba:/bedrijfsarts/i.test(text),ov:false},found:false};
   const N="([A-ZÀ-Þ][a-zà-ÿ'\\-]+)";
-  const pats=[new RegExp('(?:roepnaam|voornaam)\\s*[:\\-]?\\s*'+N,'i'),
-    new RegExp('naam\\s*(?:cli[eë]nt|werknemer|pati[eë]nt|medewerker)?\\s*[:\\-]\\s*(?:(?:mevr(?:ouw)?|dhr|de heer|mw|mr|ms)\\.?\\s+)?(?:[A-Z]\\.\\s*)*'+N,'i')];
-  for(const p of pats){const m=text.match(p);if(m){r.naam=m[1];r.found=true;break}}
+  const pats=[new RegExp('(?:roepnaam|voornaam(?:\\(en\\)|en)?)\\s*[:\\-]?\\s*'+N,'i'),
+    new RegExp('naam\\s*(?:cli[eë]nt|werknemer|pati[eë]nt|medewerker)?\\s*[:\\-]\\s*(?:(?:mevr(?:ouw)?|dhr|de heer|mw|mr|ms)\\.?\\s+)?(?:[A-Z]\\.\\s*)*'+N,'i'),
+    new RegExp('naam\\s*(?:van\\s+(?:de\\s+)?)?(?:cli[eë]nt|werknemer|pati[eë]nt|medewerker)\\s*[:\\-]?\\s*(?:(?:mevr(?:ouw)?|dhr|de heer|mw|mr|ms)\\.?\\s+)?(?:[A-Z]\\.\\s*)*'+N,'i')];
+  for(const p of pats){const m=text.match(p);if(m&&/^[A-ZÀ-Þ]/.test(m[1])&&!/^(De|Den|Der|Van|Het|Ter|Ten)$/.test(m[1])){r.naam=m[1];r.found=true;break}}
   if(!r.via.wg&&!r.via.ba)r.via.wg=true;return r}
 async function startDraft(name,buf){
   let info={naam:'',via:{wg:true,ba:false,ov:false},found:false},rd={pages:[],total:0};
-  if(buf){toast('Aanmelding wordt uitgelezen…',1500);try{rd=await pdfRead(buf);info=parse(rd.text)}catch(e){console.warn(e);toast('Deze pdf kon niet worden uitgelezen. Vul de gegevens zelf in.',4000)}}
-  const it=curItem(),hasPdf=it&&(it.attachments||[]).some(a=>/\.pdf$/i.test(a.name||''));
-  state.draft={file:name,pages:rd.pages,total:rd.total,naam:info.naam,found:info.found,via:info.via,datum:today,beh:'',fwd:hasPdf?'auto':'zivver',move:true,addr:''};render()}
-function openViewer(start){const d=state.draft;if(!d||!d.pages||!d.pages.length)return;
+  const kind=/\.docx$/i.test(name||'')?'docx':/\.doc$/i.test(name||'')?'doc':'pdf';
+  if(buf&&kind==='doc'){toast('Dit is een oud Word-bestand (.doc) dat het paneel niet kan lezen. Vul de gegevens zelf in.',5000);buf=null}
+  if(buf){toast('Aanmelding wordt uitgelezen…',1500);try{rd=kind==='docx'?await docxRead(buf):await pdfRead(buf);info=parse(rd.text)}catch(e){console.warn(e);toast('Deze bijlage kon niet worden uitgelezen. Vul de gegevens zelf in.',4000)}}
+  const it=curItem(),hasPdf=it&&(it.attachments||[]).some(isAtt);
+  const mi=mailInfo();
+  state.draft={file:name,html:rd.html||'',pages:rd.pages||[],total:rd.total,naam:info.naam,found:info.found,via:info.via,datum:(mi&&mi.datum)||today,afzender:mi?mi.from:'',msgId:mi?mi.id:'',beh:'',fwd:hasPdf?'auto':'zivver',move:true,addr:''};render()}
+const wordDoc=(html,z=1)=>`<!doctype html><html><head><meta charset="utf-8"><style>body{font:14px/1.5 Calibri,Arial,sans-serif;color:#111;background:#fff;margin:16px;zoom:${z}}table{border-collapse:collapse;max-width:100%}td,th{border:1px solid #ccc;padding:3px 6px;vertical-align:top}img{max-width:100%}p{margin:0 0 6px}</style></head><body>${html}</body></html>`;
+function openWordViewer(){const d=state.draft;let z=1;const el=document.createElement('div');el.className='viewer';
+  el.innerHTML=`<div class="vh"><button class="btn" id="vClose" aria-label="Sluiten">←</button><b>${esc(d.file||'Aanmelding')}</b><button class="btn" id="vOut" aria-label="Kleiner">−</button><button class="btn" id="vIn" aria-label="Groter">+</button></div><iframe sandbox title="Aanmelding"></iframe>`;
+  document.body.appendChild(el);const fr=el.querySelector('iframe');const draw=()=>fr.srcdoc=wordDoc(d.html,z);draw();
+  el.querySelector('#vClose').onclick=()=>el.remove();el.querySelector('#vIn').onclick=()=>{z=Math.min(2.5,z+.25);draw()};el.querySelector('#vOut').onclick=()=>{z=Math.max(.75,z-.25);draw()}}
+function openViewer(start){const d=state.draft;if(d&&d.html)return openWordViewer();if(!d||!d.pages||!d.pages.length)return;
   let z=1;const el=document.createElement('div');el.className='viewer';
   const draw=()=>{const w=Math.round(el.clientWidth*z-24);el.querySelector('.vb').innerHTML=d.pages.map((pg,i)=>`<img src="${pg.src}" alt="Pagina ${i+1}" draggable="false" style="width:${w}px">`).join('')};
   el.innerHTML=`<div class="vh"><button class="btn" id="vClose" aria-label="Sluiten">←</button><b>${esc(d.file||'Aanmelding')}</b><button class="btn" id="vOut" aria-label="Kleiner">−</button><button class="btn" id="vIn" aria-label="Groter">+</button></div><div class="vb"></div>`;
@@ -544,25 +591,25 @@ function readDraft(){const d=state.draft;if(!d)return;
   document.querySelectorAll('#main [data-via]').forEach(cb=>d.via[cb.dataset.via]=cb.checked)}
 async function fromMail(){const it=curItem();
   if(!it){toast('Open eerst de mail met de aanmelding.');return}
-  const pdfs=(it.attachments||[]).filter(a=>/\.pdf$/i.test(a.name||'')||a.contentType==='application/pdf');
-  if(!pdfs.length){toast('Deze mail heeft geen pdf-bijlage. Bij Zivver: open de bijlage via Zivver en sleep hem in het vak.',5000);return}
+  const pdfs=(it.attachments||[]).filter(a=>!a.isInline&&isAtt(a));
+  if(!pdfs.length){const n=(it.attachments||[]).filter(a=>!a.isInline).map(a=>a.name).join(', ');toast(n?`Geen Word- of pdf-bijlage gevonden (wel: ${n}).`:'Deze mail heeft geen bijlage. Bij Zivver: open de bijlage via Zivver en sleep hem in het vak.',6000);return}
   const a=pdfs[0];
   if(it.getAttachmentContentAsync){it.getAttachmentContentAsync(a.id,res=>{
     if(res.status!=='succeeded'||res.value.format!=='base64'){startDraft(a.name);return}
     const bin=atob(res.value.content),buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);startDraft(a.name,buf)})}
   else startDraft(a.name)}
 async function assign(){
-  readDraft();const d=state.draft,naam=(d.naam||'').trim();
-  if(!naam){toast('Vul de voornaam van de cliënt in.');return}
+  readDraft();const d=state.draft,naam=(d.naam||'').trim()||tmpName(d.datum);
   if(!d.beh){toast('Kies eerst een behandelaar.');return}
   const it=curItem();
   if(!state.demo&&it&&d.fwd==='auto'&&!(mail[d.beh]&&mail[d.beh].addr)&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.addr||'')){toast('Vul het e-mailadres van '+d.beh+' in om automatisch door te sturen.');return}
   if(state.demo){
-    const c={row:Date.now(),naam,beh:d.beh,datum:d.datum||today,intakeDatum:'',sessies:'',start:'',eind:'',jamesNr:'',via:{...d.via},dl:'',mailId:'',passief:false,pasDatum:'',done:{},doneDate:{}};
+    const c={row:Date.now(),afzender:d.afzender||'',msgId:d.msgId||'',naam,beh:d.beh,datum:d.datum||today,intakeDatum:'',sessies:'',start:'',eind:'',jamesNr:'',via:{...d.via},dl:'',mailId:'',passief:false,pasDatum:'',done:{},doneDate:{}};
     if(d.fwd==='auto'&&it){c.done[S_NAAR]=true;c.doneDate[S_NAAR]=today}
     state.clients.unshift(c);state.draft=null;state.tab='caseload';state.filter=d.beh;render();
     toast(`Testmodus: ${naam} is toegewezen aan ${d.beh}. In het echt zou de mail nu ${d.fwd==='auto'?'worden doorgestuurd en ':''}${d.move?'naar "'+FOLDER+'" gaan':'blijven staan'}.`,6000);return}
   await run(async()=>{
+    await ensureCol(COL.afz,'');await ensureCol(COL.msg,'');
     const log=[];
     // 1. mail: markeren, doorsturen, verplaatsen
     let restId='';
@@ -581,7 +628,7 @@ async function assign(){
         const moved=await g(`/me/messages/${restId}/move`,{method:'POST',body:{destinationId:fid}});restId=moved.id;log.push('verplaatst');}
     }
     // 2. Excel-regel
-    const vals={[COL.naam]:naam,[COL.beh]:d.beh,[COL.datum]:toSerial(d.datum||today),[COL.wg]:!!d.via.wg,[COL.ba]:!!d.via.ba,[COL.ov]:!!d.via.ov,[COL.pas]:false,[COL.pasd]:'',[COL.mail]:restId};
+    const vals={[COL.naam]:naam,[COL.beh]:d.beh,[COL.datum]:toSerial(d.datum||today),[COL.wg]:!!d.via.wg,[COL.ba]:!!d.via.ba,[COL.ov]:!!d.via.ov,[COL.pas]:false,[COL.pasd]:'',[COL.mail]:restId,[COL.afz]:d.afzender||'',[COL.msg]:d.msgId||''};
     STEPS.forEach(s=>{vals[s.k]=false;vals['Datum: '+s.k]=''});
     if(d.fwd==='auto'&&it){vals[S_NAAR]=true;vals['Datum: '+S_NAAR]=toSerial(today)}
     const row=state.emptyRows[0];
@@ -612,6 +659,10 @@ function bind(){
   document.querySelectorAll('[data-done]').forEach(cb=>cb.onchange=()=>{const c=byRow(cb.dataset.done),k=cb.dataset.k;
     run(async()=>{await setCells(c.row,{[k]:true,['Datum: '+k]:toSerial(today),[COL.dl]:''});c.done[k]=true;c.doneDate[k]=today;c.dl='';
       const n=nextStep(c);toast(n?`Afgevinkt. Volgende stap voor ${c.naam}: ${n.l} (${owner(c,n)})`:`${c.naam} is afgerond.`)})});
+  document.querySelectorAll('[data-tnsave]').forEach(b=>b.onclick=()=>{const c=byRow(b.dataset.tnsave),v=($('#tn-'+c.row).value||'').trim();
+    if(!v){toast('Vul eerst een voornaam in.');return}run(async()=>{await setCells(c.row,{[COL.naam]:v});const old=c.naam;c.naam=v;toast(`"${old}" heet nu ${v}.`)})});
+  document.querySelectorAll('[data-tname]').forEach(i=>i.onkeydown=e=>{if(e.key==='Enter')document.querySelector(`[data-tnsave="${i.dataset.tname}"]`).click()});
+  $('#quick')?.addEventListener('click',()=>startDraft('',null));
   document.querySelectorAll('[data-tintake]').forEach(i=>i.onchange=()=>{if(!i.value)return;const c=byRow(i.dataset.tintake),v=i.value;
     run(async()=>{await setCells(c.row,{[COL.intake]:toSerial(v),[S_INTAKE]:true,['Datum: '+S_INTAKE]:toSerial(today),[COL.dl]:''});c.intakeDatum=v;c.done[S_INTAKE]=true;c.doneDate[S_INTAKE]=today;c.dl='';
       const n=nextStep(c);toast(`Intake ${c.naam} ingepland op ${fmt(v)}.`+(n?` Volgende: ${n.l}, uiterlijk ${fmt(deadline(c,n))}.`:''))})});
@@ -624,7 +675,7 @@ function bind(){
     fi.onchange=()=>take(fi.files[0]);
     ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
     ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
-    drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)take(f);else toast('Dit kon niet als bestand worden gelezen. Sla de pdf eerst op en kies hem via klikken.',5000)});
+    drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)take(f);else toast('Dit kon niet als bestand worden gelezen. Sla de bijlage eerst op en kies hem via klikken.',5000)});
     $('#fromMail').onclick=fromMail;$('#manual').onclick=()=>startDraft('',null);}
   $('#cancel')?.addEventListener('click',()=>{state.draft=null;document.querySelector('.viewer')?.remove();render()});
   $('#assign')?.addEventListener('click',assign);
